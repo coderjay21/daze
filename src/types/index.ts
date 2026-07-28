@@ -64,6 +64,7 @@ export interface SearchResults {
   albums: Models.Album[];
   artists: Models.Artist[];
   playlists: Models.Playlist[];
+  topQuery?: any[];
 }
 
 export interface UserPreferences {

@@ -43,10 +43,11 @@ Choose the build that matches your device architecture.
 
 ### Why Sausico?
 
-- 🏗️ **Production-Ready Architecture** – Built for scale and maintainability
-- ⚡ **Blazing Fast** – Optimized with MMKV storage and efficient state management
-- 🎨 **Beautiful UI/UX** – Dynamic theming and smooth animations
-- 🔊 **Professional Playback** – Background audio, queue management, and rich controls
+- 🏎️ **Powered by `react-native-nitro-player`** – High-performance native playback engine & native queue management
+- 🏗️ **Production-Ready Architecture** – Direct native state bindings for minimal latency and zero state duplication
+- ⚡ **Blazing Fast** – MMKV storage, native download manager, and fast stream URL resolution
+- 🎨 **Beautiful UI/UX** – Dynamic artwork-based theming and smooth micro-animations
+- 🔊 **Professional Playback** – Background audio, Android Auto/CarPlay support, gapless playback, and notification controls
 - 🧪 **Modern Stack** – React 19, Expo SDK 54, React Native 0.81
 
 ---
@@ -59,12 +60,13 @@ Choose the build that matches your device architecture.
       
 ### 🎧 **Audio Experience**
       
+- Native engine powered by `react-native-nitro-player`
+- Low-latency queue management directly in native layer
 - Background audio playback with foreground service
-- Seamless queue management (play next, add to queue)
-- Full media controls (seek, skip, repeat, shuffle)
-- Android lock-screen & notification controls
-- Gapless playback support
-- Audio focus handling
+- Android Auto, CarPlay, lock-screen & notification controls
+- Gapless playback & native `DownloadManager` support
+- Full playback controls (seek, skip, repeat mode)
+- Automatic audio focus handling
       
     </td>
     <td width="50%">

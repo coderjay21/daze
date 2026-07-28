@@ -1,6 +1,6 @@
 import { TrackItem } from "@/components";
 import { HistoryEntry, HistorySection } from "@/services";
-import { usePlayerStore, useHistoryStore, useSnackbarStore } from "@/stores";
+import { usePlayerActions, useCurrentSong, useHistoryStore, useSnackbarStore } from "@/stores";
 import { theme, getScreenPaddingBottom } from "@/utils";
 
 import { MaterialIcons } from "@expo/vector-icons";
@@ -33,7 +33,8 @@ export default function HistoryScreen() {
   const showSnackbar = useSnackbarStore((state) => state.show);
   const bottomPadding = getScreenPaddingBottom(true, true) + insets.bottom;
 
-  const { playSong, currentSong } = usePlayerStore();
+  const { playSong } = usePlayerActions();
+  const currentSong = useCurrentSong();
   const {
     sections: fullSections,
     loading,

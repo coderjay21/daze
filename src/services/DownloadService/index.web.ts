@@ -1,7 +1,7 @@
 import { AUDIO_QUALITY, STORAGE_KEYS } from "@/constants";
 import { appStorage } from "@/stores/storage";
 import { Models, Song } from "@saavn-labs/sdk";
-import { DownloadProgress, DownloadedTrack } from "./index.native";
+import { DownloadProgress, DownloadedTrack } from "./index";
 
 const DB_NAME = "sausico_downloads";
 const DB_VERSION = 1;

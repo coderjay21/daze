@@ -1,10 +1,10 @@
-import { Models, Song } from "@saavn-labs/sdk";
+import { Models, Song, Extras } from "@saavn-labs/sdk";
 import { downloadService } from "@/services/DownloadService";
 import { AUDIO_QUALITY, STORAGE_KEYS } from "@/constants";
 import { appStorage } from "@/stores/storage";
 import { RepeatMode } from "@/types";
-import { queueService } from "../QueueService";
-import { StateUpdater, IPlayerService, PlayerState } from "./index.native";
+import { StateUpdater, IPlayerService, PlayerState } from "./index";
+import { historyService } from "../HistoryService";
 
 export class PlayerService implements IPlayerService {
   private stateUpdater: StateUpdater | null = null;
@@ -109,9 +109,25 @@ export class PlayerService implements IPlayerService {
         currentSong: song,
       });
 
-      this.queue = await queueService.setQueue(song, providedQueue);
-      this.currentIndex = this.queue.findIndex(s => s.id === song.id);
-      if (this.currentIndex === -1) this.currentIndex = 0;
+      let fullQueue: Models.Song[] = [];
+      if (providedQueue?.length) {
+        const cIndex = providedQueue.findIndex(s => s.id === song.id);
+        const queueFromCurrent = cIndex >= 0 ? providedQueue.slice(cIndex + 1) : providedQueue;
+        const seen = new Set<string>();
+        const filtered = queueFromCurrent.filter(s => {
+          if (!s.id || s.id === song.id) return false;
+          if (seen.has(s.id)) return false;
+          seen.add(s.id);
+          return true;
+        });
+        fullQueue = [song, ...filtered];
+      } else {
+        const recs = await this.fetchRecommendations(song.id);
+        fullQueue = [song, ...recs.slice(0, 10)];
+      }
+
+      this.queue = fullQueue;
+      this.currentIndex = 0;
 
       await this.loadAndPlayCurrentIndex();
 
@@ -135,7 +151,11 @@ export class PlayerService implements IPlayerService {
       this.audio.currentTime = startPositionMs / 1000;
       this.updateMediaSessionMetadata(song);
 
-      queueService.onTrackChanged(song.id);
+      try {
+        await historyService.addToHistory(song, 0);
+      } catch (error) {
+        console.error("[Web Player] addToHistory error:", error);
+      }
 
       this.notify({
         currentSong: song,
@@ -148,7 +168,6 @@ export class PlayerService implements IPlayerService {
       }
     } catch (error) {
       console.error("[Web Player] Load track failed:", error);
-      // Auto-skip to next on failure
       this.next();
     }
   }
@@ -170,7 +189,8 @@ export class PlayerService implements IPlayerService {
 
     try {
       this.wantsToPlay = false;
-      this.queue = await queueService.setQueue(currentSong);
+      const recs = await this.fetchRecommendations(currentSong.id);
+      this.queue = [currentSong, ...recs.slice(0, 10)];
       this.currentIndex = 0;
 
       await this.loadAndPlayCurrentIndex(progress);
@@ -204,10 +224,9 @@ export class PlayerService implements IPlayerService {
   async next(): Promise<void> {
     try {
       if (this.currentIndex >= this.queue.length - 1) {
-        const qState = queueService.getState();
-
-        if (qState.currentSong?.id) {
-          const extended = await this.maybeExtendQueue(qState.currentSong.id);
+        const currentSong = this.queue[this.currentIndex];
+        if (currentSong?.id) {
+          const extended = await this.maybeExtendQueue(currentSong.id);
           if (extended) {
             this.currentIndex++;
             await this.loadAndPlayCurrentIndex();
@@ -255,7 +274,6 @@ export class PlayerService implements IPlayerService {
   }
 
   async setRepeatMode(mode: RepeatMode): Promise<void> {
-    queueService.setRepeatMode(mode);
     this.repeatMode = mode;
     this.notify({ repeatMode: mode });
   }
@@ -268,7 +286,6 @@ export class PlayerService implements IPlayerService {
 
     this.queue = [];
     this.currentIndex = -1;
-    queueService.clear();
 
     if ("mediaSession" in navigator) {
       navigator.mediaSession.metadata = null;
@@ -286,8 +303,6 @@ export class PlayerService implements IPlayerService {
   async addToQueue(song: Models.Song): Promise<void> {
     try {
       this.queue.push(song);
-      queueService.addToQueue(song);
-
       this.notify({
         upcomingTracks: this.queue.slice(this.currentIndex + 1),
       });
@@ -299,8 +314,6 @@ export class PlayerService implements IPlayerService {
   async addNextInQueue(song: Models.Song): Promise<void> {
     try {
       this.queue.splice(this.currentIndex + 1, 0, song);
-      queueService.addNextInQueue(song);
-
       this.notify({
         upcomingTracks: this.queue.slice(this.currentIndex + 1),
       });
@@ -330,20 +343,36 @@ export class PlayerService implements IPlayerService {
         AUDIO_QUALITY[quality.toUpperCase() as keyof typeof AUDIO_QUALITY] ||
         AUDIO_QUALITY.MEDIUM;
 
-      return urls[idx].url || null;
+      return urls[idx]?.url || null;
     } catch (error) {
       console.error("[Web Player] Failed to prepare track URL:", song.title, error);
       return null;
     }
   }
 
+  private async fetchRecommendations(seedSongId: string): Promise<Models.Song[]> {
+    try {
+      const { stationId } = await Extras.createEntityStation({ songIds: [seedSongId] });
+      const { songs } = await Song.getByStationId({ stationId });
+      
+      const history = await historyService.getHistory();
+      const playedIds = new Set(history.map((entry) => entry.song.id));
+      const queueIds = new Set(this.queue.map(s => s.id));
+      
+      return songs.filter(s => s.id !== seedSongId && !playedIds.has(s.id) && !queueIds.has(s.id));
+    } catch (error) {
+      console.error("[Web Player] Fetch recommendations failed:", error);
+      return [];
+    }
+  }
+
   private async maybeExtendQueue(seedSongId: string): Promise<boolean> {
     try {
-      const newSongs = await queueService.extendQueue(seedSongId);
+      const newSongs = await this.fetchRecommendations(seedSongId);
 
       if (newSongs.length === 0) return false;
 
-      this.queue.push(...newSongs);
+      this.queue.push(...newSongs.slice(0, 10));
 
       this.notify({
         upcomingTracks: this.queue.slice(this.currentIndex + 1),

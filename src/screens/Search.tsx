@@ -1,24 +1,24 @@
 import { GenericMediaItem, TrackItem } from "@/components";
+import VoiceSearchModal from "@/components/search/VoiceSearchModal";
 import { UI_CONFIG } from "@/constants";
 import { useSearchStore } from "@/stores";
 import { useCurrentSong, usePlayerActions } from "@/stores/playerStore";
-import { theme, getScreenPaddingBottom } from "@/utils";
-import VoiceSearchModal from "@/components/search/VoiceSearchModal";
+import { getScreenPaddingBottom, theme } from "@/utils";
 import { Models } from "@saavn-labs/sdk";
 
 import React, {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
+    useCallback,
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
 } from "react";
 import {
-  Animated,
-  ScrollView,
-  StyleSheet,
-  TouchableOpacity,
-  View,
+    Animated,
+    ScrollView,
+    StyleSheet,
+    TouchableOpacity,
+    View,
 } from "react-native";
 import { IconButton, Searchbar, Text } from "react-native-paper";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -171,7 +171,7 @@ const SearchScreen: React.FC<SearchScreenProps> = ({
     const trimmedQuery = searchQuery.trim();
     if (trimmedQuery.length >= MIN_SEARCH_LENGTH) {
       debounceTimerRef.current = setTimeout(() => {
-        executeSearch(trimmedQuery, activeTab);
+        executeSearch(searchQuery, activeTab);
       }, UI_CONFIG.SEARCH_DEBOUNCE);
     } else {
       cancelSearch();
@@ -237,6 +237,63 @@ const SearchScreen: React.FC<SearchScreenProps> = ({
       </View>
     ),
     [theme],
+  );
+
+  const renderTopQueryResult = useCallback(
+    (topQuery: any[], isLoading: boolean) => {
+      if (isLoading) return null;
+      if (!topQuery || topQuery.length === 0) return null;
+
+      const item = topQuery[0];
+      if (!item) return null;
+
+      return (
+        <View style={styles.section}>
+          {renderSectionHeader("Top Result", 1)}
+          {item.type === "song" && (
+            <TrackItem
+              key={item.id}
+              track={item as Models.Song}
+              onPress={() => handleTrackPress(item as Models.Song)}
+              isActive={currentSong?.id === item.id}
+              showArtwork
+            />
+          )}
+          {item.type === "album" && (
+            <GenericMediaItem
+              key={item.id}
+              data={item}
+              type="album"
+              onPress={() => onAlbumPress(item.id)}
+            />
+          )}
+          {item.type === "artist" && (
+            <GenericMediaItem
+              key={item.id}
+              data={item}
+              type="artist"
+              onPress={() => onArtistPress(item.id)}
+            />
+          )}
+          {item.type === "playlist" && (
+            <GenericMediaItem
+              key={item.id}
+              data={item}
+              type="playlist"
+              onPress={() => onPlaylistPress(item.id)}
+            />
+          )}
+        </View>
+      );
+    },
+    [
+      currentSong?.id,
+      handleTrackPress,
+      onAlbumPress,
+      onArtistPress,
+      onPlaylistPress,
+      renderSectionHeader,
+    ],
   );
 
   const renderSongsList = useCallback(
@@ -422,15 +479,48 @@ const SearchScreen: React.FC<SearchScreenProps> = ({
       }
     }
 
+    const topResult = results.topQuery?.[0];
+    const topResultId = topResult?.id;
+
     return (
       <>
-        {renderSongsList(results.songs || [], loadingStates.songs)}
-        {renderAlbumsList(results.albums || [], loadingStates.albums)}
-        {renderArtistsList(results.artists || [], loadingStates.artists)}
-        {renderPlaylistsList(results.playlists || [], loadingStates.playlists)}
+        {renderTopQueryResult(
+          results.topQuery || [],
+          Object.values(loadingStates).some((loading) => loading),
+        )}
+        {renderSongsList(
+          (results.songs || []).filter((song) => song.id !== topResultId),
+          loadingStates.songs,
+        )}
+        {renderAlbumsList(
+          (results.albums || []).filter((album) => album.id !== topResultId),
+          loadingStates.albums,
+        )}
+        {renderArtistsList(
+          (results.artists || []).filter((artist) => artist.id !== topResultId),
+          loadingStates.artists,
+        )}
+        {renderPlaylistsList(
+          (results.playlists || []).filter(
+            (playlist) => playlist.id !== topResultId,
+          ),
+          loadingStates.playlists,
+        )}
       </>
     );
-  }, [searchQuery, results, loadingStates, recentSearches, activeTab, theme]);
+  }, [
+    searchQuery,
+    results,
+    loadingStates,
+    recentSearches,
+    activeTab,
+    theme,
+    renderTopQueryResult,
+    renderSongsList,
+    renderAlbumsList,
+    renderArtistsList,
+    renderPlaylistsList,
+  ]);
 
   const tabs = [
     { id: "songs" as SearchTab, label: "Songs" },

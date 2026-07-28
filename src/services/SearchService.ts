@@ -7,6 +7,7 @@ export interface SearchResults {
   albums: Models.Album[];
   artists: Models.Artist[];
   playlists: Models.Playlist[];
+  topQuery?: any[];
 }
 
 const EMPTY_RESULTS: SearchResults = {
@@ -14,6 +15,7 @@ const EMPTY_RESULTS: SearchResults = {
   albums: [],
   artists: [],
   playlists: [],
+  topQuery: [],
 };
 
 export class SearchService {
@@ -31,6 +33,7 @@ export class SearchService {
       albums: (result.albums?.data as Models.Album[]) || [],
       artists: (result.artists?.data as Models.Artist[]) || [],
       playlists: (result.playlists?.data as Models.Playlist[]) || [],
+      topQuery: result.topquery?.data || [],
     };
   }
 

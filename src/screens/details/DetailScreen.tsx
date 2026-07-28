@@ -9,7 +9,8 @@ import { COLORS } from "@/constants";
 import {
   useDetailStore,
   useLibraryStore,
-  usePlayerStore,
+  usePlayerActions,
+  useCurrentSong,
   useSnackbarStore,
 } from "@/stores";
 import { getScreenPaddingBottom, handleAsync, theme } from "@/utils";
@@ -71,7 +72,8 @@ const DetailScreen: React.FC<DetailScreenProps> = ({
   onAlbumPress,
 }) => {
   const insets = useSafeAreaInsets();
-  const { playSong, currentSong } = usePlayerStore();
+  const { playSong } = usePlayerActions();
+  const currentSong = useCurrentSong();
   const savedAlbums = useLibraryStore((state) => state.savedAlbums);
   const savedPlaylists = useLibraryStore((state) => state.savedPlaylists);
   const toggleSavedAlbum = useLibraryStore((state) => state.toggleSavedAlbum);
@@ -851,20 +853,18 @@ const DetailScreen: React.FC<DetailScreenProps> = ({
               />
             </TouchableOpacity>
 
-            {type !== "artist" && (
-              <TouchableOpacity
-                onPress={handleToggleSave}
-                style={styles.actionButton}
-                activeOpacity={0.7}
-              >
+            <TouchableOpacity
+              onPress={handleToggleSave}
+              style={styles.actionButton}
+              activeOpacity={0.7}
+            >
                 <IconButton
                   icon={isSaved ? "bookmark" : "bookmark-outline"}
                   size={26}
                   iconColor={isSaved ? COLORS.PRIMARY : theme.colors.onSurface}
                   style={styles.actionIcon}
                 />
-              </TouchableOpacity>
-            )}
+            </TouchableOpacity>
 
             <TouchableOpacity
               onPress={handleShare}

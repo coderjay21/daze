@@ -1,8 +1,8 @@
 import {
-  SearchCategory,
-  SearchResults,
-  searchService,
-  storageService,
+    SearchCategory,
+    SearchResults,
+    searchService,
+    storageService,
 } from "@/services";
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
@@ -47,6 +47,7 @@ const initialResults: SearchResults = {
   albums: [],
   artists: [],
   playlists: [],
+  topQuery: [],
 };
 
 const initialLoadingStates: LoadingStates = {
@@ -113,7 +114,6 @@ export const useSearchStore = create<SearchState>()(
 
       executeSearch: async (query, tab) => {
         const trimmed = query.trim();
-        set({ searchQuery: query });
 
         if (trimmed.length < 2) {
           activeAbortController?.abort();

@@ -1,6 +1,6 @@
 import { GenericMediaItem, TrackItem } from "@/components";
 import { AUDIO_QUALITY, COLORS, UI_CONFIG } from "@/constants";
-import { useHomeStore, usePlayerStore, useUpdateStore } from "@/stores";
+import { useHomeStore, usePlayerActions, useCurrentSong, useUpdateStore } from "@/stores";
 import { getScreenPaddingBottom } from "@/utils";
 import { Models } from "@saavn-labs/sdk";
 
@@ -222,7 +222,8 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
   onSearchFocus,
   deferInitialLoad = false,
 }) => {
-  const { playSong, currentSong } = usePlayerStore();
+  const { playSong } = usePlayerActions();
+  const currentSong = useCurrentSong();
   const { updateAvailable, openUpdateDialog } = useUpdateStore();
   const insets = useSafeAreaInsets();
   const bottomPadding = getScreenPaddingBottom(true, true) + insets.bottom;

@@ -1,9 +1,17 @@
-import { playerService, PlayerState, queueService } from "@/services";
+import { playerService, PlayerState } from "@/services";
 import { RepeatMode } from "@/types";
 import { Models } from "@saavn-labs/sdk";
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 import { appStorage } from "./storage";
+import { Platform } from "react-native";
+import {
+  usePlaybackStatusHook,
+  useCurrentSongHook,
+  useProgressHook,
+  useDurationHook,
+  useUpcomingTracksHook,
+} from "./playerHooks";
 
 interface PlayerStore extends PlayerState {
   dominantColor: string;
@@ -28,11 +36,6 @@ export const usePlayerStore = create<PlayerStore>()(
       playerService.setStateUpdater((updates) => {
         set((state) => ({ ...state, ...updates }));
       });
-
-      queueService.setStateUpdater((updates) => {
-        set((state) => ({ ...state, ...updates }));
-      });
-
 
       return {
         status: "paused",
@@ -171,16 +174,14 @@ export const usePlayerStore = create<PlayerStore>()(
   ),
 );
 
-export const usePlaybackStatus = () => usePlayerStore((state) => state.status);
-export const useCurrentSong = () =>
-  usePlayerStore((state) => state.currentSong);
-export const useProgress = () => usePlayerStore((state) => state.progress);
-export const useDuration = () => usePlayerStore((state) => state.duration);
-export const useUpcomingTracks = () =>
-  usePlayerStore((state) => state.upcomingTracks);
+export const usePlaybackStatus = usePlaybackStatusHook;
+export const useCurrentSong = useCurrentSongHook;
+export const useProgress = useProgressHook;
+export const useDuration = useDurationHook;
+export const useUpcomingTracks = useUpcomingTracksHook;
+
 export const useRepeatMode = () => usePlayerStore((state) => state.repeatMode);
-export const useDominantColor = () =>
-  usePlayerStore((state) => state.dominantColor);
+export const useDominantColor = () => usePlayerStore((state) => state.dominantColor);
 
 export const usePlayerActions = () =>
   usePlayerStore((state) => ({
