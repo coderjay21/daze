@@ -1,17 +1,17 @@
 import {
-  CompactPlayer,
-  EmptyState,
-  FullPlayer,
-  LoadingSpinner,
-  TrackItem,
+    CompactPlayer,
+    EmptyState,
+    FullPlayer,
+    LoadingSpinner,
+    TrackItem,
 } from "@/components";
 import { COLORS } from "@/constants";
 import {
-  useDetailStore,
-  useLibraryStore,
-  usePlayerActions,
-  useCurrentSong,
-  useSnackbarStore,
+    useCurrentSong,
+    useDetailStore,
+    useLibraryStore,
+    usePlayerActions,
+    useSnackbarStore,
 } from "@/stores";
 import { getScreenPaddingBottom, handleAsync, theme } from "@/utils";
 import { Album, Artist, Models, Playlist } from "@saavn-labs/sdk";
@@ -19,22 +19,22 @@ import { Album, Artist, Models, Playlist } from "@saavn-labs/sdk";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import React, {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
+    useCallback,
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
 } from "react";
 import {
-  Animated,
-  Dimensions,
-  FlatList,
-  Image,
-  RefreshControl,
-  Share,
-  StyleSheet,
-  TouchableOpacity,
-  View,
+    Animated,
+    Dimensions,
+    FlatList,
+    Image,
+    RefreshControl,
+    Share,
+    StyleSheet,
+    TouchableOpacity,
+    View,
 } from "react-native";
 import { IconButton, Text } from "react-native-paper";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -96,7 +96,7 @@ const DetailScreen: React.FC<DetailScreenProps> = ({
   } = useDetailStore();
 
   const scrollY = useRef(new Animated.Value(0)).current;
-  const bottomPadding = getScreenPaddingBottom(true, false) + insets.bottom;
+  const bottomPadding = getScreenPaddingBottom(true) + insets.bottom;
 
   useEffect(() => {
     loadData();
@@ -858,12 +858,12 @@ const DetailScreen: React.FC<DetailScreenProps> = ({
               style={styles.actionButton}
               activeOpacity={0.7}
             >
-                <IconButton
-                  icon={isSaved ? "bookmark" : "bookmark-outline"}
-                  size={26}
-                  iconColor={isSaved ? COLORS.PRIMARY : theme.colors.onSurface}
-                  style={styles.actionIcon}
-                />
+              <IconButton
+                icon={isSaved ? "bookmark" : "bookmark-outline"}
+                size={26}
+                iconColor={isSaved ? COLORS.PRIMARY : theme.colors.onSurface}
+                style={styles.actionIcon}
+              />
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -914,8 +914,6 @@ const styles = StyleSheet.create({
   compactPlayerOffset: {
     position: "absolute",
     bottom: 8,
-    left: 8,
-    right: 8,
     zIndex: 10,
   },
   fixedHeader: {

@@ -1,12 +1,12 @@
 import { theme } from "@/utils";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
-  Animated,
-  Modal,
-  Platform,
-  StyleSheet,
-  TouchableOpacity,
-  View,
+    Animated,
+    Modal,
+    Platform,
+    StyleSheet,
+    TouchableOpacity,
+    View,
 } from "react-native";
 import { IconButton, Text } from "react-native-paper";
 

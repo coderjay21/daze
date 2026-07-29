@@ -1,6 +1,6 @@
 import { GenericMediaItem, TrackItem } from "@/components";
 import type { Collection } from "@/services";
-import { useLibraryStore, usePlayerActions, useCurrentSong } from "@/stores";
+import { useCurrentSong, useLibraryStore, usePlayerActions } from "@/stores";
 import { getScreenPaddingBottom, theme } from "@/utils";
 import { Models } from "@saavn-labs/sdk";
 
@@ -53,7 +53,7 @@ const GRADIENT_COLORS = [
 
 const LibraryScreen: React.FC<LibraryScreenProps> = () => {
   const insets = useSafeAreaInsets();
-  const bottomPadding = getScreenPaddingBottom(true, true) + insets.bottom;
+  const bottomPadding = getScreenPaddingBottom(true) + insets.bottom;
   const { playSong } = usePlayerActions();
   const currentSong = useCurrentSong();
 

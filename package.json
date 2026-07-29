@@ -1,7 +1,7 @@
 {
   "name": "sausico",
   "main": "expo-router/entry",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "scripts": {
     "start": "expo start",
     "android": "expo run:android",
@@ -13,7 +13,7 @@
   "dependencies": {
     "@expo/metro-runtime": "~6.1.2",
     "@expo/vector-icons": "^15.1.1",
-    "@react-native-community/slider": "^5.2.0",
+    "@react-native-community/slider": "5.0.1",
     "@saavn-labs/sdk": "^0.1.5",
     "expo": "~54.0.34",
     "expo-application": "~7.0.8",

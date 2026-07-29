@@ -133,7 +133,7 @@ const SearchScreen: React.FC<SearchScreenProps> = ({
   const { playSong } = usePlayerActions();
   const currentSong = useCurrentSong();
   const insets = useSafeAreaInsets();
-  const bottomPadding = getScreenPaddingBottom(true, true) + insets.bottom;
+  const bottomPadding = getScreenPaddingBottom(true) + insets.bottom;
 
   const {
     searchQuery,

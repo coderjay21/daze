@@ -12,6 +12,7 @@ import { setStatusBarBackgroundColor, StatusBar } from "expo-status-bar";
 import { useEffect } from "react";
 import {
   AppState,
+  Platform,
   Text as RNText,
   TextInput as RNTextInput,
   StyleSheet,
@@ -25,9 +26,11 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 void SplashScreen.preventAutoHideAsync();
 
-setFetchConfig({
-  baseUrl: "https://sausico.pages.dev/saavn",
-});
+if (Platform.OS === "web") {
+  setFetchConfig({
+    baseUrl: "https://sausico.pages.dev/saavn",
+  });
+}
 
 const fonts = configureFonts({
   config: {

@@ -3,9 +3,10 @@ import FullPlayer from "@/components/player/FullPlayer";
 import { useUIStore } from "@/stores/uiStore";
 import { sizes } from "@/utils";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
 import { Tabs, useLocalSearchParams } from "expo-router";
 import React, { useEffect } from "react";
-import { StyleSheet, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 
 export default function TabLayout() {
   const { isFullPlayerVisible, setFullPlayerVisible } = useUIStore();
@@ -25,60 +26,124 @@ export default function TabLayout() {
           headerShown: false,
           tabBarShowLabel: false,
           tabBarStyle: {
-            backgroundColor: "#121212",
-            height: sizes.tabBarHeight,
-            paddingBottom: 0,
+            position: "absolute",
+            backgroundColor: "transparent",
             borderTopWidth: 0,
-            elevation: 8,
+            elevation: 0,
+            shadowOpacity: 0,
+            height: sizes.tabBarHeight,
           },
           tabBarActiveTintColor: "#ffffff",
           tabBarInactiveTintColor: "#b3b3b3",
           tabBarItemStyle: {
-            paddingVertical: 8,
+            paddingTop: 16,
           },
+          tabBarBackground: () => (
+            <LinearGradient
+              colors={[
+                "rgba(18,18,18,0)",
+                "rgba(18,18,18,0.72)",
+                "rgba(18,18,18,0.95)",
+              ]}
+              locations={[0, 0.48, 1]}
+              style={[styles.tabBarBackground, { pointerEvents: "none" }]}
+            />
+          ),
         }}
       >
         <Tabs.Screen
           name="index"
           options={{
             tabBarIcon: ({ color, focused }) => (
-              <MaterialCommunityIcons
-                name={focused ? "home-variant" : "home-variant-outline"}
-                color={color}
-                size={30}
-              />
+              <View style={styles.tabItem}>
+                <MaterialCommunityIcons
+                  name={focused ? "home-variant" : "home-variant-outline"}
+                  color={color}
+                  size={30}
+                />
+                <Text
+                  style={[
+                    styles.tabLabel,
+                    { color: focused ? "#ffffff" : "#b3b3b3" },
+                  ]}
+                >
+                  Home
+                </Text>
+              </View>
             ),
+            tabBarAccessibilityLabel: "Home",
           }}
         />
 
         <Tabs.Screen
           name="search"
           options={{
-            tabBarIcon: ({ color }) => (
-              <MaterialCommunityIcons name="magnify" color={color} size={30} />
+            tabBarIcon: ({ color, focused }) => (
+              <View style={styles.tabItem}>
+                <MaterialCommunityIcons
+                  name="magnify"
+                  color={color}
+                  size={30}
+                />
+                <Text
+                  style={[
+                    styles.tabLabel,
+                    { color: focused ? "#ffffff" : "#b3b3b3" },
+                  ]}
+                >
+                  Search
+                </Text>
+              </View>
             ),
+            tabBarAccessibilityLabel: "Search",
           }}
         />
 
         <Tabs.Screen
           name="library"
           options={{
-            tabBarIcon: ({ color }) => (
-              <MaterialCommunityIcons
-                name="bookshelf"
-                color={color}
-                size={30}
-              />
+            tabBarIcon: ({ color, focused }) => (
+              <View style={styles.tabItem}>
+                <MaterialCommunityIcons
+                  name="bookshelf"
+                  color={color}
+                  size={30}
+                />
+                <Text
+                  style={[
+                    styles.tabLabel,
+                    { color: focused ? "#ffffff" : "#b3b3b3" },
+                  ]}
+                >
+                  Library
+                </Text>
+              </View>
             ),
+            tabBarAccessibilityLabel: "Library",
           }}
         />
 
         <Tabs.Screen
           name="downloads"
           options={{
-            tabBarIcon: ({ color }) => (
-              <MaterialCommunityIcons name="download" color={color} size={30} />
+            tabBarIcon: ({ color, focused }) => (
+              <View style={styles.tabItem}>
+                <MaterialCommunityIcons
+                  name="download"
+                  color={color}
+                  size={30}
+                />
+                <Text
+                  style={[
+                    styles.tabLabel,
+                    { color: focused ? "#ffffff" : "#b3b3b3" },
+                  ]}
+                >
+                  Downloads
+                </Text>
+              </View>
             ),
+            tabBarAccessibilityLabel: "Downloads",
           }}
         />
       </Tabs>
@@ -103,10 +168,27 @@ const styles = StyleSheet.create({
   },
   compactPlayerOffset: {
     position: "absolute",
-    bottom: sizes.tabBarHeight + 8,
-    left: 8,
-    right: 8,
+    bottom: sizes.tabBarHeight,
     zIndex: 1000,
     elevation: 10,
+  },
+  tabBarBackground: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: sizes.tabBarHeight + 60,
+  },
+  tabItem: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  tabLabel: {
+    fontFamily: "SpotifyMedium",
+    fontSize: 12,
+    marginTop: 4,
+    minWidth: 80,
+    textAlign: "center",
   },
 });

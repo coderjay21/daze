@@ -226,7 +226,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
   const currentSong = useCurrentSong();
   const { updateAvailable, openUpdateDialog } = useUpdateStore();
   const insets = useSafeAreaInsets();
-  const bottomPadding = getScreenPaddingBottom(true, true) + insets.bottom;
+  const bottomPadding = getScreenPaddingBottom(true) + insets.bottom;
 
   const {
     sections,
@@ -794,12 +794,12 @@ const styles = StyleSheet.create({
     backgroundColor: "#282828",
     borderRadius: 6,
     overflow: "hidden",
-    height: 60,
-    marginBottom: 8,
+    height: 55,
   },
   quickPickImage: {
-    width: 60,
-    height: 60,
+    width: 55,
+    height: 55,
+    borderRadius: 6,
   },
   quickPickMeta: {
     flex: 1,

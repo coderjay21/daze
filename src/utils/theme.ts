@@ -16,26 +16,26 @@ export const theme = {
   roundness: 12,
 } as const;
 
-export const shadows = {
+export const boxShadows = {
   small: {
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
+    boxShadowColor: "#000",
+    boxShadowOffset: { width: 0, height: 2 },
+    boxShadowOpacity: 0.25,
+    boxShadowRadius: 4,
     elevation: 4,
   },
   medium: {
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
+    boxShadowColor: "#000",
+    boxShadowOffset: { width: 0, height: 4 },
+    boxShadowOpacity: 0.3,
+    boxShadowRadius: 8,
     elevation: 8,
   },
   large: {
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.4,
-    shadowRadius: 16,
+    boxShadowColor: "#000",
+    boxShadowOffset: { width: 0, height: 8 },
+    boxShadowOpacity: 0.4,
+    boxShadowRadius: 16,
     elevation: 12,
   },
 } as const;

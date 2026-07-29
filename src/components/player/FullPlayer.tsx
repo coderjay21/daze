@@ -1,20 +1,20 @@
 import { useLibraryStore } from "@/stores";
 import {
-  useCurrentSong,
-  useDominantColor,
-  useDuration,
-  usePlaybackStatus,
-  usePlayerActions,
-  useProgress,
-  useRepeatMode,
-  useSetDominantColor,
-  useUpcomingTracks,
+    useCurrentSong,
+    useDominantColor,
+    useDuration,
+    usePlaybackStatus,
+    usePlayerActions,
+    useProgress,
+    useRepeatMode,
+    useSetDominantColor,
+    useUpcomingTracks,
 } from "@/stores/playerStore";
 import {
-  createColorGradient,
-  extractAndUpdateColor,
-  formatTime,
-  theme,
+    createColorGradient,
+    extractAndUpdateColor,
+    formatTime,
+    theme,
 } from "@/utils";
 import { Models } from "@saavn-labs/sdk";
 
@@ -28,13 +28,13 @@ import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
-  Animated,
-  Dimensions,
-  FlatList,
-  Modal,
-  StyleSheet,
-  TouchableOpacity,
-  View,
+    Animated,
+    Dimensions,
+    FlatList,
+    Modal,
+    StyleSheet,
+    TouchableOpacity,
+    View,
 } from "react-native";
 import { Text } from "react-native-paper";
 

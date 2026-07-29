@@ -18,7 +18,6 @@ export interface PlayerState {
 export type StateUpdater = (updates: Partial<PlayerState>) => void;
 
 export interface IPlayerService {
-  setStateUpdater(updater: StateUpdater): void;
   play(song: Models.Song, providedQueue?: Models.Song[]): Promise<void>;
   resume(): Promise<void>;
   pause(): Promise<void>;
@@ -39,18 +38,15 @@ export class PlayerService implements IPlayerService {
   constructor() {
     this.initialize();
   }
-  
-  setStateUpdater(updater: StateUpdater): void {
-    // No-op on native, as we use nitro-player hooks directly
-  }
 
   public async initialize(): Promise<void> {
     if (this.isInitialized) return;
 
     await TrackPlayer.configure({
       androidAutoEnabled: true,
-      carPlayEnabled: true,
       showInNotification: true,
+      androidNotificationIcon: "ic_notification",
+      lookaheadCount: 5,
     });
 
     this.setupEventListeners();

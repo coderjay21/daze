@@ -4,7 +4,6 @@ import { Models } from "@saavn-labs/sdk";
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 import { appStorage } from "./storage";
-import { Platform } from "react-native";
 import {
   usePlaybackStatusHook,
   useCurrentSongHook,
@@ -33,10 +32,6 @@ interface PlayerStore extends PlayerState {
 export const usePlayerStore = create<PlayerStore>()(
   persist(
     (set, get) => {
-      playerService.setStateUpdater((updates) => {
-        set((state) => ({ ...state, ...updates }));
-      });
-
       return {
         status: "paused",
         currentSong: null,

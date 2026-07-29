@@ -17,15 +17,12 @@ export const borderRadius = {
 
 export const sizes = {
   tabBarHeight: 60,
-  compactPlayerHeight: 74,
 } as const;
 
 export const getScreenPaddingBottom = (
-  includePlayer = true,
   includeTabBar = true,
 ): number => {
   let padding = 0;
   if (includeTabBar) padding += sizes.tabBarHeight;
-  if (includePlayer) padding += sizes.compactPlayerHeight;
   return padding;
 };

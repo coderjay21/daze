@@ -1,21 +1,26 @@
 import { TrackItem } from "@/components";
 import { HistoryEntry, HistorySection } from "@/services";
-import { usePlayerActions, useCurrentSong, useHistoryStore, useSnackbarStore } from "@/stores";
-import { theme, getScreenPaddingBottom } from "@/utils";
+import {
+    useCurrentSong,
+    useHistoryStore,
+    usePlayerActions,
+    useSnackbarStore,
+} from "@/stores";
+import { getScreenPaddingBottom, theme } from "@/utils";
 
 import { MaterialIcons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
-import React, { useEffect, useRef, useState, useCallback } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
-  Alert,
-  Animated,
-  Platform,
-  RefreshControl,
-  SectionList,
-  StyleSheet,
-  TouchableOpacity,
-  View,
+    Alert,
+    Animated,
+    Platform,
+    RefreshControl,
+    SectionList,
+    StyleSheet,
+    TouchableOpacity,
+    View,
 } from "react-native";
 import { Appbar, Text } from "react-native-paper";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -31,7 +36,7 @@ export default function HistoryScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const showSnackbar = useSnackbarStore((state) => state.show);
-  const bottomPadding = getScreenPaddingBottom(true, true) + insets.bottom;
+  const bottomPadding = getScreenPaddingBottom(true) + insets.bottom;
 
   const { playSong } = usePlayerActions();
   const currentSong = useCurrentSong();
