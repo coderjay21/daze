@@ -3,7 +3,7 @@ import { appStorage } from "@/stores/storage";
 import { Models, Song } from "@saavn-labs/sdk";
 import { DownloadProgress, DownloadedTrack } from "./index";
 
-const DB_NAME = "sausico_downloads";
+const DB_NAME = "daze_downloads";
 const DB_VERSION = 1;
 const STORE_NAME = "tracks";
 
