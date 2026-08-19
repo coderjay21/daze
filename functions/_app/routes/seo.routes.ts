@@ -60,7 +60,7 @@ async function buildSeoShell(type: SeoType, id: string): Promise<string> {
 
       data = {
         title: `${song.title} – ${artists}`,
-        description: `Listen to ${song.title} by ${artists}. Stream the song in high quality and explore more music on Sausico.`,
+        description: `Listen to ${song.title} by ${artists}. Stream the song in high quality and explore more music on Daze.`,
         image: song.images?.[1]?.url,
       };
       break;
@@ -71,7 +71,7 @@ async function buildSeoShell(type: SeoType, id: string): Promise<string> {
 
       data = {
         title: artist.name,
-        description: `Discover songs, albums, and playlists by ${artist.name}. Stream their latest and most popular tracks on Sausico.`,
+        description: `Discover songs, albums, and playlists by ${artist.name}. Stream their latest and most popular tracks on Daze.`,
         image: artist.images?.[1]?.url,
       };
       break;
@@ -86,7 +86,7 @@ async function buildSeoShell(type: SeoType, id: string): Promise<string> {
 
       data = {
         title: `${album.title} – ${artists}`,
-        description: `Listen to the album ${album.title} by ${artists}. Explore all tracks and enjoy seamless music streaming on Sausico.`,
+        description: `Listen to the album ${album.title} by ${artists}. Explore all tracks and enjoy seamless music streaming on Daze.`,
         image: album.images?.[1]?.url,
       };
       break;
@@ -97,7 +97,7 @@ async function buildSeoShell(type: SeoType, id: string): Promise<string> {
 
       data = {
         title: playlist.title,
-        description: `Play the playlist ${playlist.title}. Enjoy a curated collection of songs and discover new music on Sausico.`,
+        description: `Play the playlist ${playlist.title}. Enjoy a curated collection of songs and discover new music on Daze.`,
         image: playlist.images?.[1]?.url,
       };
       break;
