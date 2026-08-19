@@ -1,5 +1,9 @@
 export const linking = {
-  prefixes: ["https://sausico.pages.dev", "https://*.sausico.pages.dev"],
+  prefixes: [
+    "daze://",
+    "https://daze.jayagarwal.online",
+    "https://*.daze.jayagarwal.online",
+  ],
   config: {
     screens: {
       "(tabs)": {
