@@ -80,7 +80,7 @@ yarn-error.*
 *.tsbuildinfo
 
 # @end expo-cli
-
+/android
 android/app/release.keystore
 android/gradle.properties
 .wrangler
