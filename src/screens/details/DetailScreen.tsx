@@ -184,13 +184,13 @@ const DetailScreen: React.FC<DetailScreenProps> = ({
     [playSong, songs],
   );
 
-  const handleShare = useCallback(async () => {
+    const handleShare = useCallback(async () => {
     if (!data) return;
 
     const result = await handleAsync(async () => {
       const displayName = data.title || data.name || "Unknown";
-      const shareUrl = `https://sausico.pages.dev/${type}/${data.id}`;
-      const message = `Check out ${displayName} on Sausico\n${shareUrl}`;
+      const shareUrl = `https://daze.jayagarwal.online/${type}/${data.id}`;
+      const message = `Check out ${displayName} on Daze\n${shareUrl}`;
 
       await Share.share({
         message,
