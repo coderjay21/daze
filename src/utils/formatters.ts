@@ -54,15 +54,16 @@ export function formatShareMessage(song: Models.Song): {
   message: string;
   title: string;
 } {
-  const url = `https://sausico.pages.dev/song/${song.id}`;
+  const url = `https://daze.jayagarwal.online/song/${song.id}`;
   const artistsText = formatArtistNames(song);
-  const message = `Check out "${song.title}" by ${artistsText} on Sausico`;
+  const message = `Check out "${song.title}" by ${artistsText} on Daze`;
 
   return {
     message: `${message}\n${url}`,
     title: song.title,
   };
 }
+
 
 /**
  * Format date for display (e.g., "Jan 24, 2026")
