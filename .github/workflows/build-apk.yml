@@ -1,4 +1,4 @@
-name: Build Android APK
+name: Build Android APKs
 
 on:
   workflow_dispatch:
@@ -25,15 +25,20 @@ jobs:
       - name: Clean Native Directories
         run: rm -rf android ios
 
-      - name: Regenerate Native Android Project
+      - name: Prebuild Native Android
         run: npx expo prebuild --clean --platform android
+
+      - name: Enable Architecture Splitting
+        run: |
+          echo "android.enableSeparateBuildPerCPUArchitecture=true" >> android/gradle.properties
 
       - name: Initialize EAS Project
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
         run: eas init --account devjay_21 --non-interactive
 
-      - name: Build APK via EAS
+      - name: Build Split APKs via EAS
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
         run: eas build -p android --profile preview --non-interactive
+        
