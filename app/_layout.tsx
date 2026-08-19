@@ -28,7 +28,7 @@ void SplashScreen.preventAutoHideAsync();
 
 if (Platform.OS === "web") {
   setFetchConfig({
-    baseUrl: "https://sausico.pages.dev/saavn",
+    baseUrl: "https://daze.jayagarwal.online/saavn",
   });
 }
 
