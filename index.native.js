@@ -1,37 +1,11 @@
-
-const linking = {
-  prefixes: [
-    "sausico://",
-    "https://sausico.pages.dev",
-    "https://*.sausico.pages.dev",
-  ],
-  config: {
-    screens: {
-      "(tabs)": {
-        screens: {
-          index: "",
-          search: "search",
-          library: "library",
-          downloads: "downloads",
-        },
-      },
-      "song/[id]": "song/:id",
-      "album/[id]": "album/:id",
-      "artist/[id]": "artist/:id",
-      "playlist/[id]": "playlist/:id",
-      history: "history",
-    },
-  },
-};
-
 import { registerRootComponent } from "expo";
 import { ExpoRoot } from "expo-router";
 
 const linking = {
   prefixes: [
-    "sausico://",
-    "https://sausico.pages.dev",
-    "https://*.sausico.pages.dev",
+    "daze://",
+    "https://daze.jayagarwal.online",
+    "https://*.daze.jayagarwal.online",
   ],
   config: {
     screens: {
