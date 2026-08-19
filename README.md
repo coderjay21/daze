@@ -1,6 +1,6 @@
-# Sausico
+# Daze
 
-### A Modern, High-Performance JioSaavn Client
+### A Modern, High-Performance Music Streaming App
 
 [![React Native](https://img.shields.io/badge/React%20Native-0.81-61DAFB?style=flat&logo=react&logoColor=white)](https://reactnative.dev/)
 [![Expo](https://img.shields.io/badge/Expo-SDK%2054-000020?style=flat&logo=expo&logoColor=white)](https://expo.dev/)
@@ -8,8 +8,6 @@
 [![Platform](https://img.shields.io/badge/Platform-Android-3DDC84?style=flat&logo=android&logoColor=white)](https://www.android.com/)
 
 **Experience music streaming reimagined with cutting-edge technology and thoughtful design.**
-
-🌐 **Website:** https://sausico.pages.dev
 
 ---
 
@@ -26,22 +24,23 @@
 
 ## ⬇ Download
 
-**Current Version:** `v1.0.5`
+**Current Version:** `v1.0.0`
 
 Choose the build that matches your device architecture.
 
 | Build Variant   | Device Compatibility             | Download                                                                                                                                                                                                         |
 | --------------- | -------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **arm64-v8a**   | Modern Android devices (2015+)   | [![Download arm64-v8a](https://img.shields.io/badge/Download-3DDC84?style=for-the-badge&logo=android&logoColor=white)](https://github.com/saavn-labs/app/releases/download/v1.0.5/app-arm64-v8a-release.apk)     |
-| **armeabi-v7a** | Older Android devices (pre-2015) | [![Download armeabi-v7a](https://img.shields.io/badge/Download-5C6BC0?style=for-the-badge&logo=android&logoColor=white)](https://github.com/saavn-labs/app/releases/download/v1.0.5/app-armeabi-v7a-release.apk) |
-| **x86_64**      | Emulators and x86-based devices  | [![Download x86_64](https://img.shields.io/badge/Download-0288D1?style=for-the-badge&logo=intel&logoColor=white)](https://github.com/saavn-labs/app/releases/download/v1.0.5/app-x86_64-release.apk)             |
-| **x86**         | Legacy emulators                 | [![Download x86](https://img.shields.io/badge/Download-607D8B?style=for-the-badge&logo=intel&logoColor=white)](https://github.com/saavn-labs/app/releases/download/v1.0.5/app-x86-release.apk)                   |
+| **arm64-v8a**   | Modern Android devices (2015+)   | [![Download arm64-v8a](https://img.shields.io/badge/Download-3DDC84?style=for-the-badge&logo=android&logoColor=white)](https://github.com/coderjay21/daze/releases/latest/download/app-arm64-v8a-release.apk)     |
+| **armeabi-v7a** | Older Android devices (pre-2015) | [![Download armeabi-v7a](https://img.shields.io/badge/Download-5C6BC0?style=for-the-badge&logo=android&logoColor=white)](https://github.com/coderjay21/daze/releases/latest/download/app-armeabi-v7a-release.apk) |
+| **x86_64**      | Emulators and x86-based devices  | [![Download x86_64](https://img.shields.io/badge/Download-0288D1?style=for-the-badge&logo=intel&logoColor=white)](https://github.com/coderjay21/daze/releases/latest/download/app-x86_64-release.apk)             |
+| **x86**         | Legacy emulators                 | [![Download x86](https://img.shields.io/badge/Download-607D8B?style=for-the-badge&logo=intel&logoColor=white)](https://github.com/coderjay21/daze/releases/latest/download/app-x86-release.apk)                   |
+| **Universal**   | All Devices (All-in-One APK)     | [![Download Universal](https://img.shields.io/badge/Download_Universal-007ACC?style=for-the-badge&logo=android&logoColor=white)](https://github.com/coderjay21/daze/releases/latest)                               |
 
-> **Quick Guide:** Download arm64-v8a first. If it installs successfully, you've got the right one. If installation fails, try armeabi-v7a instead.
+> **Quick Guide:** Download `arm64-v8a` first. If it installs successfully, you have the most optimized build. If installation fails, try `armeabi-v7a` or use the Universal build.
 
 ---
 
-### Why Sausico?
+### Why Daze?
 
 - 🏎️ **Powered by `react-native-nitro-player`** – High-performance native playback engine & native queue management
 - 🏗️ **Production-Ready Architecture** – Direct native state bindings for minimal latency and zero state duplication
@@ -171,90 +170,6 @@ Choose the build that matches your device architecture.
   </tr>
 </table>
 
-### Media Details
-
-<table>
-  <tr>
-    <td align="center" width="33%">
-      <img src="assets/images/screenshots/details-album.png" alt="Album Details" width="250"/>
-      <br/>
-      <b>Album View</b>
-      <br/>
-      <sub>Complete album information</sub>
-    </td>
-    <td align="center" width="33%">
-      <img src="assets/images/screenshots/details-artist.png" alt="Artist Details" width="250"/>
-      <br/>
-      <b>Artist Profile</b>
-      <br/>
-      <sub>Top tracks & discography</sub>
-    </td>
-    <td align="center" width="33%">
-      <img src="assets/images/screenshots/details-playlist.png" alt="Playlist Details" width="250"/>
-      <br/>
-      <b>Playlist View</b>
-      <br/>
-      <sub>Curated & custom playlists</sub>
-    </td>
-  </tr>
-</table>
-
-### Library & Collections
-
-<table>
-  <tr>
-    <td align="center" width="33%">
-      <img src="assets/images/screenshots/library-favorites.png" alt="Favorites" width="250"/>
-      <br/>
-      <b>Favorites</b>
-      <br/>
-      <sub>Liked songs & albums</sub>
-    </td>
-    <td align="center" width="33%">
-      <img src="assets/images/screenshots/library-collections-1.png" alt="Collections" width="250"/>
-      <br/>
-      <b>Collections</b>
-      <br/>
-      <sub>Organized library sections</sub>
-    </td>
-    <td align="center" width="33%">
-      <img src="assets/images/screenshots/library-collections-2.png" alt="Collections" width="250"/>
-      <br/>
-      <b>Custom Collection</b>
-      <br/>
-      <sub>User-defined music collections</sub>
-    </td>
-  </tr>
-</table>
-
-### Bonus Features
-
-<table>
-  <tr>
-    <td align="center" width="33%">
-      <img src="assets/images/screenshots/track-menu.png" alt="Track Menu" width="250"/>
-      <br/>
-      <b>Track Menu</b>
-      <br/>
-      <sub>Context menu with rich actions</sub>
-    </td>
-    <td align="center" width="33%">
-      <img src="assets/images/screenshots/audio-quality.png" alt="Audio Quality" width="250"/>
-      <br/>
-      <b>Audio Quality</b>
-      <br/>
-      <sub>High fidelity playback options</sub>
-    </td>
-    <td align="center" width="33%">
-      <img src="assets/images/screenshots/history.png" alt="History" width="250"/>
-      <br/>
-      <b>History</b>
-      <br/>
-      <sub>List of recently played tracks</sub>
-    </td>
-  </tr>
-</table>
-
 ---
 
 ## 🚀 Quick Start
@@ -265,10 +180,10 @@ Before you begin, ensure you have the following installed:
 
 | Requirement                 | Version          | Download                                                          |
 | --------------------------- | ---------------- | ----------------------------------------------------------------- |
-| **Node.js**                 | 18.x or higher   | [nodejs.org](https://nodejs.org/)                                 |
+| **Node.js**                 | 20.x or higher   | [nodejs.org](https://nodejs.org/)                                 |
 | **Java JDK**                | 17 (recommended) | [Oracle JDK](https://www.oracle.com/java/technologies/downloads/) |
 | **Android SDK**             | Latest           | Via Android Studio                                                |
-| **Android Device/Emulator** | API 21+          | [Android Studio](https://developer.android.com/studio)            |
+| **Android Device/Emulator** | API 24+          | [Android Studio](https://developer.android.com/studio)            |
 
 > **⚠️ Important Notice**
 >
@@ -279,130 +194,5 @@ Before you begin, ensure you have the following installed:
 1. **Clone the repository**
 
 ```bash
-git clone https://github.com/saavn-labs/app.git
-cd app
-```
-
-2. **Install dependencies**
-
-```bash
-# Using npm
-npm install
-
-# Using yarn
-yarn install
-
-# Using bun
-bun install
-```
-
-3. **Build and run development client**
-
-```bash
-# Build and install on connected Android device/emulator
-npm run android
-
-# Start the Metro bundler
-npx expo start --dev-client
-```
-
-4. **Launch the app**
-
-Open the installed development client on your device and it will automatically connect to Metro.
-
----
-
-## 🐛 Troubleshooting
-
-### Common Issues
-
-<details>
-<summary><b>App crashes on launch</b></summary>
-
-**Solution:**
-
-```bash
-# Rebuild the development client
-npm run android
-
-# Clear Metro cache
-npx expo start -c
-```
-
-</details>
-
-<details>
-<summary><b>No audio playback</b></summary>
-
-**Possible causes:**
-
-- Development client not properly installed
-- Android audio focus not granted
-- Service not registered in `AndroidManifest.xml`
-
-**Solution:**
-
-```bash
-# Reinstall with clean build
-cd android && ./gradlew clean
-cd .. && npm run android
-```
-
-</details>
-
-<details>
-<summary><b>Build errors with Gradle</b></summary>
-
-**Solution:**
-
-```bash
-# Clean Gradle cache
-cd android
-./gradlew clean
-rm -rf .gradle
-cd ..
-
-# Rebuild
-npm run android
-```
-
-</details>
-
-<details>
-<summary><b>Metro bundler issues</b></summary>
-
-**Solution:**
-
-```bash
-# Clear all caches
-npx expo start -c
-watchman watch-del-all  # If using watchman
-rm -rf node_modules && npm install
-```
-
-</details>
-
----
-
-## 📄 Legal Notice
-
-**This is an unofficial application.**
-
-- Not affiliated with, endorsed by, or connected to JioSaavn
-- Does not host, store, or redistribute any copyrighted content
-- All media data and URLs are fetched from publicly accessible APIs
-- Usage compliance is the sole responsibility of the end user
-
-This project is intended for **educational and personal use only**. Please respect copyright laws and support artists by using official platforms.
-
----
-
-## License
-
-**MIT** © 2026 Saavn Labs
-
-See [LICENSE](./LICENSE) for details.
-
----
-
-Built by **Saavn Labs** with a focus on correctness and longevity.
+git clone [https://github.com/coderjay21/daze.git](https://github.com/coderjay21/daze.git)
+cd daze
