@@ -36,10 +36,10 @@ updateRoutes.post("/check", async (c) => {
       return c.json({ error: "Version required" }, 400);
     }
 
-    const res = await fetch(
-      "https://api.github.com/repos/saavn-labs/app/releases/latest",
+        const res = await fetch(
+      "https://api.github.com/repos/coderjay21/daze/releases/latest",
       {
-        headers: { Accept: "application/vnd.github+json", "User-Agent": "Saavn Labs App" },
+        headers: { Accept: "application/vnd.github+json", "User-Agent": "Daze App" },
       }
     );
 
