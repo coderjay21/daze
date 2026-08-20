@@ -21,7 +21,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: 'npm'
 
       - name: Install Dependencies
         run: npm install --legacy-peer-deps
@@ -32,17 +31,23 @@ jobs:
       - name: Prebuild Native Android
         run: npx expo prebuild --clean --platform android
 
-      - name: Enable Architecture Splitting in Gradle
+      - name: Configure Gradle Environment & Split Architecture
         run: |
           echo "android.enableSeparateBuildPerCPUArchitecture=true" >> android/gradle.properties
           echo "org.gradle.jvmargs=-Xmx4096m -XX:MaxMetaspaceSize=512m" >> android/gradle.properties
+          echo "NODE_BINARY=$(which node)" >> $GITHUB_ENV
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v3
 
       - name: Build Split APKs with Gradle
         working-directory: android
-        run: ./gradlew assembleRelease --no-daemon
+        env:
+          NODE_BINARY: ${{ env.NODE_BINARY }}
+        run: |
+          export NODE_BINARY=$(which node)
+          export PATH=$PATH:$(dirname $(which node))
+          ./gradlew assembleRelease --no-daemon -PreactNativeArchitectures=arm64-v8a,armeabi-v7a,x86,x86_64
 
       - name: Collect Generated Split APKs
         run: |
