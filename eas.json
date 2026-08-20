@@ -7,9 +7,12 @@
     "preview": {
       "distribution": "internal",
       "node": "20.18.0",
+      "env": {
+        "EXPO_NO_TELEMETRY": "1"
+      },
       "android": {
         "buildType": "apk",
-        "gradleCommand": ":app:assembleRelease"
+        "gradleCommand": ":app:assembleRelease -PreactNativeArchitectures=arm64-v8a,armeabi-v7a,x86,x86_64"
       }
     },
     "production": {
