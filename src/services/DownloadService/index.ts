@@ -2,6 +2,9 @@ import { AUDIO_QUALITY, STORAGE_KEYS } from "@/constants";
 import { appStorage } from "@/stores/storage";
 import { Models, Song } from "@saavn-labs/sdk";
 import { DownloadManager, TrackItem } from "react-native-nitro-player";
+import * as MediaLibrary from "expo-media-library";
+import * as FileSystem from "expo-file-system";
+import { Alert } from "react-native";
 
 export interface DownloadedTrack {
   id: string;
@@ -104,7 +107,7 @@ export class DownloadService {
       const streamUrl = urls?.[qualityIndex]?.url;
       if (!streamUrl) throw new Error("No streaming URL available");
 
-      // Content length fetch karke actual file size pata lagana
+      // Content-Length header se accurate size estimate
       let estimatedSize = 0;
       try {
         const headRes = await fetch(streamUrl, { method: "HEAD" });
@@ -130,9 +133,8 @@ export class DownloadService {
 
       await DownloadManager.downloadTrack(trackItem);
 
-      // Agar native size mil sake toh wahan se lo, nahi toh HEAD request se
       const storageInfo = await DownloadManager.getStorageInfo();
-      const actualSize = estimatedSize > 0 ? estimatedSize : (storageInfo?.totalDownloadedSize || 3500000);
+      const actualSize = estimatedSize > 0 ? estimatedSize : (storageInfo?.totalDownloadedSize || 4500000);
 
       const downloadedTrack: DownloadedTrack = {
         id: songId,
@@ -242,12 +244,81 @@ export class DownloadService {
   }
 
   async saveToDownloads(fileUri: string): Promise<void> {
-    throw new Error("Direct save not supported on native storage");
+    try {
+      const { status } = await MediaLibrary.requestPermissionsAsync();
+      if (status !== "granted") throw new Error("Storage permission denied");
+
+      const asset = await MediaLibrary.createAssetAsync(fileUri);
+      await MediaLibrary.createAlbumAsync("Daze Music", asset, false);
+    } catch (error) {
+      console.error("[DownloadService] saveToDownloads failed:", error);
+      throw error;
+    }
   }
 
   async exportTracks(songIds: string[]): Promise<void> {
-    // Native sharing/export trigger
-    console.log("[DownloadService] Export requested for:", songIds);
+    try {
+      const { status } = await MediaLibrary.requestPermissionsAsync();
+      if (status !== "granted") {
+        Alert.alert(
+          "Permission Required",
+          "Storage permission is required to export audio tracks to your device music library."
+        );
+        return;
+      }
+
+      const downloads = await this.getDownloadedTracks();
+      const storageInfo = await DownloadManager.getStorageInfo();
+      let exportedCount = 0;
+
+      for (const songId of songIds) {
+        const download = downloads.find((d) => d.id === songId);
+        if (!download) continue;
+
+        const artist = download.song?.artists?.primary?.[0]?.name || "Unknown Artist";
+        const title = download.song?.title || "Track";
+        const safeArtist = artist.replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 35);
+        const safeTitle = title.replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 35);
+        const filename = `${safeTitle} - ${safeArtist}.m4a`;
+        const tempUri = `${FileSystem.cacheDirectory}${filename}`;
+
+        // Local native path resolve karna
+        const nativeTrack = (storageInfo as any)?.tracks?.find((t: any) => t.id === songId);
+        const sourcePath = nativeTrack?.path || download.filePath;
+
+        if (sourcePath.startsWith("file://") || sourcePath.startsWith("/")) {
+          await FileSystem.copyAsync({
+            from: sourcePath,
+            to: tempUri,
+          });
+        } else {
+          // Direct fallback stream fetch
+          const encrypted =
+            download.song.media?.encryptedUrl ??
+            (await Song.getById({ songIds: songId })).songs?.[0]?.media?.encryptedUrl;
+
+          if (encrypted) {
+            const urls = await Song.experimental.fetchStreamUrls(encrypted, "edge", true);
+            const streamUrl = urls?.[AUDIO_QUALITY.HIGH]?.url || urls?.[AUDIO_QUALITY.MEDIUM]?.url;
+            if (streamUrl) {
+              await FileSystem.downloadAsync(streamUrl, tempUri);
+            }
+          }
+        }
+
+        const asset = await MediaLibrary.createAssetAsync(tempUri);
+        await MediaLibrary.createAlbumAsync("Daze Music", asset, false);
+        exportedCount++;
+      }
+
+      if (exportedCount > 0) {
+        Alert.alert("Success", `${exportedCount} track(s) exported to 'Daze Music' folder!`);
+      }
+    } catch (error) {
+      console.error("[DownloadService] Export failed:", error);
+      Alert.alert("Export Error", error instanceof Error ? error.message : "Failed to export tracks.");
+      throw error;
+    }
   }
 }
 
