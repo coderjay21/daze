@@ -11,6 +11,8 @@ import {
   useTheme,
 } from "react-native-paper";
 
+const OFFICIAL_WEBSITE_URL = "https://daze.jayagarwal.online";
+
 const AppUpdateDialog: React.FC = () => {
   const {
     visible,
@@ -18,7 +20,6 @@ const AppUpdateDialog: React.FC = () => {
     prompt,
     latestVersion,
     releaseName,
-    releaseUrl,
     downloadState,
     progress,
     error,
@@ -33,6 +34,7 @@ const AppUpdateDialog: React.FC = () => {
 
   const isPermissionPrompt =
     prompt === "install-permission" || prompt === "install-permission-return";
+    
   const statusMessage =
     downloadState === "installing"
       ? "Opening the Android installer..."
@@ -57,16 +59,8 @@ const AppUpdateDialog: React.FC = () => {
         <Dialog.Content>
           <View style={styles.content}>
             {releaseName ? (
-              <Text
-                style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                }}
-              >
-                <Text
-                  variant="bodyLarge"
-                  style={{ color: theme.colors.primary }}
-                >
+              <Text style={{ flexDirection: "row", alignItems: "center" }}>
+                <Text variant="bodyLarge" style={{ color: theme.colors.primary }}>
                   Name:&nbsp;
                 </Text>
                 <Text variant="bodyMedium">{releaseName}</Text>
@@ -94,21 +88,18 @@ const AppUpdateDialog: React.FC = () => {
               <Text variant="bodyMedium">{statusMessage}</Text>
             )}
 
-            {(downloadState === "downloading" ||
-              downloadState === "installing") && (
+            {(downloadState === "downloading" || downloadState === "installing") && (
               <ProgressBar progress={progress} style={styles.progress} />
             )}
 
             {error ? (
-              <Text
-                variant="bodyMedium"
-                style={[styles.error, { color: theme.colors.error }]}
-              >
+              <Text variant="bodyMedium" style={[styles.error, { color: theme.colors.error }]}>
                 {error}
               </Text>
             ) : null}
           </View>
         </Dialog.Content>
+
         <Dialog.Actions style={styles.actions}>
           <View style={styles.actionsRow}>
             {!forceUpdate && !isBusy ? (
@@ -124,15 +115,16 @@ const AppUpdateDialog: React.FC = () => {
               </Button>
             ) : null}
 
-            {releaseUrl && !isBusy && !isPermissionPrompt ? (
+            {/* GitHub ki jagah daze.jayagarwal.online par redirect */}
+            {!isBusy && !isPermissionPrompt ? (
               <Button
                 compact
                 contentStyle={styles.secondaryActionContent}
                 onPress={() => {
-                  void Linking.openURL(releaseUrl);
+                  void Linking.openURL(OFFICIAL_WEBSITE_URL);
                 }}
               >
-                View Notes
+                Visit Website
               </Button>
             ) : null}
 
@@ -147,6 +139,12 @@ const AppUpdateDialog: React.FC = () => {
                   return;
                 }
 
+                // Agar in-app download fail ho gaya toh direct browser mein APK download khol dega
+                if (downloadState === "download-failed") {
+                  void Linking.openURL(`${OFFICIAL_WEBSITE_URL}/daze.apk`);
+                  return;
+                }
+
                 setPrompt("none");
                 void updateService.startDownloadAndInstall();
               }}
@@ -154,7 +152,7 @@ const AppUpdateDialog: React.FC = () => {
               {isPermissionPrompt
                 ? "Continue"
                 : downloadState === "download-failed"
-                  ? "Retry"
+                  ? "Download from Web"
                   : "Update"}
             </Button>
           </View>
