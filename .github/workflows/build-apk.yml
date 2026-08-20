@@ -26,21 +26,23 @@ jobs:
       - name: Install Dependencies
         run: npm install --legacy-peer-deps
 
-      - name: Generate Native Android Directory
+      - name: Prebuild Native Android
         run: npx expo prebuild --platform android --clean
 
-      - name: Configure Gradle Environment
+      - name: Setup Node Binary Symlink & Properties
         run: |
           echo "android.enableSeparateBuildPerCPUArchitecture=true" >> android/gradle.properties
+          echo "reactNativeArchitectures=arm64-v8a" >> android/gradle.properties
           echo "org.gradle.jvmargs=-Xmx4096m -XX:MaxMetaspaceSize=1024m" >> android/gradle.properties
+          which node
 
       - name: Build Split Release APKs
         working-directory: android
         env:
-          NODE_BINARY: node
+          NODE_BINARY: /usr/local/bin/node
         run: |
           chmod +x gradlew
-          ./gradlew assembleRelease --no-daemon -PreactNativeArchitectures=arm64-v8a
+          ./gradlew assembleRelease --no-daemon
 
       - name: Upload arm64-v8a APK (Lightweight ~25-30MB)
         uses: actions/upload-artifact@v4
