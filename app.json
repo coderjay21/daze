@@ -2,7 +2,7 @@
   "expo": {
     "name": "Daze",
     "slug": "daze",
-    "version": "1.0.5",
+    "version": "1.0.6",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "daze",
@@ -14,6 +14,7 @@
     },
     "android": {
       "package": "online.jayagarwal.daze",
+      "versionCode": 8,
       "permissions": [
         "INTERNET",
         "ACCESS_NETWORK_STATE",
@@ -22,7 +23,8 @@
         "WAKE_LOCK",
         "RECORD_AUDIO",
         "READ_EXTERNAL_STORAGE",
-        "WRITE_EXTERNAL_STORAGE"
+        "WRITE_EXTERNAL_STORAGE",
+        "READ_MEDIA_AUDIO"
       ],
       "intentFilters": [
         {
@@ -76,7 +78,15 @@
           "position": "relative"
         }
       ],
-      "expo-speech-recognition"
+      "expo-speech-recognition",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "enableSeparateBuildPerCPUArchitecture": true
+          }
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,
