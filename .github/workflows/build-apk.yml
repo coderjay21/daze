@@ -38,7 +38,6 @@ jobs:
         working-directory: android
         env:
           NODE_BINARY: node
-          PATH: ${{ env.PATH }}
         run: |
           chmod +x gradlew
           ./gradlew assembleRelease --no-daemon -PreactNativeArchitectures=arm64-v8a
