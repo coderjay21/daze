@@ -276,10 +276,10 @@ export class DownloadService {
 
         const artist = download.song?.artists?.primary?.[0]?.name || "Unknown Artist";
         const title = download.song?.title || "Track";
-        const safeArtist = artist.replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 35);
-        const safeTitle = title.replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 35);
-        const filename = `${safeTitle} - ${safeArtist}.m4a`;
-        const tempUri = `${FileSystem.cacheDirectory}${filename}`;
+        const safeArtist = artist.replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 30);
+        const safeTitle = title.replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 30);
+        const filename = `${safeTitle} - ${safeArtist}.mp3`;
+        const tempUri = `${FileSystem.documentDirectory}${filename}`;
 
         const nativeTrack = (storageInfo as any)?.tracks?.find((t: any) => t.id === songId);
         const sourcePath = nativeTrack?.path || download.filePath;
@@ -314,7 +314,6 @@ export class DownloadService {
     } catch (error) {
       console.error("[DownloadService] Export failed:", error);
       Alert.alert("Export Error", error instanceof Error ? error.message : "Failed to export tracks.");
-      throw error;
     }
   }
 }
