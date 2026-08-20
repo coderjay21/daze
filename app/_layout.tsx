@@ -9,18 +9,21 @@ import { useFonts } from "expo-font";
 import { Link, Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { setStatusBarBackgroundColor, StatusBar } from "expo-status-bar";
-import { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import {
-  AppState,
+  Linking,
   Platform,
+  StyleSheet,
   Text as RNText,
   TextInput as RNTextInput,
-  StyleSheet,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import {
   configureFonts,
   MD3DarkTheme,
   PaperProvider,
+  Text,
 } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -31,6 +34,9 @@ if (Platform.OS === "web") {
     baseUrl: "https://daze.jayagarwal.online/saavn",
   });
 }
+
+// 31st August 2026 midnight shutdown limit
+const SHUTDOWN_DATE = new Date("2026-08-31T23:59:59+05:30").getTime();
 
 const fonts = configureFonts({
   config: {
@@ -63,7 +69,15 @@ export default function Layout() {
     ...iconFonts,
   });
 
+  const [isExpired, setIsExpired] = useState(false);
   const { restoreLastTrack } = usePlayerStore();
+
+  useEffect(() => {
+    // Check if free quota expired
+    if (Date.now() > SHUTDOWN_DATE) {
+      setIsExpired(true);
+    }
+  }, []);
 
   useEffect(() => {
     if (fontsLoaded) {
@@ -86,18 +100,15 @@ export default function Layout() {
   }, [fontsLoaded]);
 
   useEffect(() => {
-    playerService.initialize();
+    void playerService.initialize();
     void updateService.checkOnLaunch();
 
     setStatusBarBackgroundColor("#121212", false);
 
-    const subscription = AppState.addEventListener("change", (nextAppState) => {
-      if (nextAppState === "inactive") {
-        playerService.stop();
-      }
-    });
-
-    return () => subscription.remove();
+    // Component unmount par playback cleanly close karega (bina normal lockscreen play disturb kiye)
+    return () => {
+      void playerService.stop();
+    };
   }, []);
 
   useEffect(() => {
@@ -111,9 +122,33 @@ export default function Layout() {
     return null;
   }
 
+  // 31st August 2026 Quota Expiry Lockout Screen
+  if (isExpired) {
+    return (
+      <PaperProvider theme={theme}>
+        <StatusBar backgroundColor="#07090e" style="light" />
+        <View style={styles.expiredContainer}>
+          <Text style={styles.expiredIcon}>⏳</Text>
+          <Text variant="headlineSmall" style={styles.expiredTitle}>
+            Server Quota Expired
+          </Text>
+          <Text variant="bodyMedium" style={styles.expiredDesc}>
+            Daze's free server tier concluded on 31st August 2026. Please visit our website to fuel the server and keep Daze permanently running.
+          </Text>
+          <TouchableOpacity
+            style={styles.expiredButton}
+            onPress={() => Linking.openURL("https://daze.jayagarwal.online")}
+          >
+            <Text style={styles.expiredButtonText}>Visit Official Website</Text>
+          </TouchableOpacity>
+        </View>
+      </PaperProvider>
+    );
+  }
+
   return (
     <PaperProvider theme={theme}>
-      <StatusBar backgroundColor="#121212" style="dark" />
+      <StatusBar backgroundColor="#121212" style="light" />
       <SafeAreaView
         style={styles.root}
         edges={["top", "bottom", "left", "right"]}
@@ -183,5 +218,40 @@ const styles = StyleSheet.create({
   },
   screenStyle: {
     backgroundColor: "#121212",
+  },
+  expiredContainer: {
+    flex: 1,
+    backgroundColor: "#07090e",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 24,
+  },
+  expiredIcon: {
+    fontSize: 52,
+    marginBottom: 16,
+  },
+  expiredTitle: {
+    color: "#ffffff",
+    fontWeight: "700",
+    marginBottom: 8,
+    textAlign: "center",
+  },
+  expiredDesc: {
+    color: "#94a3b8",
+    textAlign: "center",
+    lineHeight: 22,
+    marginBottom: 28,
+    maxWidth: 320,
+  },
+  expiredButton: {
+    backgroundColor: "#22c55e",
+    paddingVertical: 14,
+    paddingHorizontal: 28,
+    borderRadius: 999,
+  },
+  expiredButtonText: {
+    color: "#031407",
+    fontWeight: "700",
+    fontSize: 15,
   },
 });
