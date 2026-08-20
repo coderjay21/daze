@@ -108,11 +108,16 @@ export default function Layout() {
 
   useEffect(() => {
     void playerService.initialize();
-    void updateService.checkOnLaunch();
+    
+    // Check for updates on startup
+    const timer = setTimeout(() => {
+      void updateService.checkOnLaunch();
+    }, 1500);
 
     setStatusBarBackgroundColor("#121212", false);
 
     return () => {
+      clearTimeout(timer);
       void playerService.stop();
     };
   }, []);
