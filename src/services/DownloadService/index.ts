@@ -255,47 +255,83 @@ export class DownloadService {
     }
   }
 
-    async exportTracks(songIds: string[]): Promise<void> {
+      async exportTracks(songIds: string[]): Promise<void> {
     try {
-      // 1. Permissions check
-      const { status } = await MediaLibrary.requestPermissionsAsync();
-      if (status !== "granted") {
-        Alert.alert("Permission Required", "Storage permission needed to export.");
+      // 1. Ask user to pick a folder (Downloads or Music) using SAF
+      const permissions = await FileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync();
+      if (!permissions.granted) {
+        Alert.alert("Export Cancelled", "Folder selection is required to export songs.");
         return;
       }
 
+      const selectedDirUri = permissions.directoryUri;
       const downloads = await this.getDownloadedTracks();
       const storageInfo = await DownloadManager.getStorageInfo();
+      let exportedCount = 0;
 
       for (const songId of songIds) {
         const download = downloads.find((d) => d.id === songId);
         if (!download) continue;
 
-        // Filename setup
         const artist = download.song?.artists?.primary?.[0]?.name || "Unknown";
         const title = download.song?.title || "Track";
-        const filename = `${title.replace(/[^a-zA-Z0-9._-]/g, "_")}.mp3`;
-        const tempUri = `${FileSystem.cacheDirectory}${filename}`;
+        const safeArtist = artist.replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 30);
+        const safeTitle = title.replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 30);
+        const filename = `${safeTitle} - ${safeArtist}`;
+        const tempUri = `${FileSystem.cacheDirectory}${filename}.mp3`;
 
-        // Get file source
+        // Resolve track source
         const nativeTrack = (storageInfo as any)?.tracks?.find((t: any) => t.id === songId);
         const sourcePath = nativeTrack?.path || download.filePath;
 
-        // Copy file
         if (sourcePath.startsWith("file://") || sourcePath.startsWith("/")) {
-          await FileSystem.copyAsync({ from: sourcePath, to: tempUri });
+          await FileSystem.copyAsync({
+            from: sourcePath,
+            to: tempUri,
+          });
+        } else {
+          const encrypted =
+            download.song.media?.encryptedUrl ??
+            (await Song.getById({ songIds: songId })).songs?.[0]?.media?.encryptedUrl;
+
+          if (encrypted) {
+            const urls = await Song.experimental.fetchStreamUrls(encrypted, "edge", true);
+            const streamUrl = urls?.[AUDIO_QUALITY.HIGH]?.url || urls?.[AUDIO_QUALITY.MEDIUM]?.url;
+            if (streamUrl) {
+              await FileSystem.downloadAsync(streamUrl, tempUri);
+            }
+          }
         }
 
-        // CRITICAL FIX: Explicitly set mediaType to audio
-        const asset = await MediaLibrary.createAssetAsync(tempUri);
-        await MediaLibrary.createAlbumAsync("Daze Music", asset, false);
+        // Read binary content as Base64 and write into the user-selected folder
+        const base64Data = await FileSystem.readAsStringAsync(tempUri, {
+          encoding: FileSystem.EncodingType.Base64,
+        });
+
+        const targetFileUri = await FileSystem.StorageAccessFramework.createFileAsync(
+          selectedDirUri,
+          filename,
+          "audio/mpeg"
+        );
+
+        await FileSystem.writeAsStringAsync(targetFileUri, base64Data, {
+          encoding: FileSystem.EncodingType.Base64,
+        });
+
+        // Cleanup temporary cache file
+        await FileSystem.deleteAsync(tempUri, { idempotent: true });
+        exportedCount++;
       }
-      Alert.alert("Success", "Tracks exported to 'Daze Music' folder!");
+
+      if (exportedCount > 0) {
+        Alert.alert("Success !!", `${exportedCount} track(s) exported directly to your chosen folder!`);
+      }
     } catch (error) {
-      console.error("[Export Error]", error);
-      Alert.alert("Export Error", "System restricted saving this file. Try a different track.");
+      console.error("[DownloadService] SAF Export failed:", error);
+      Alert.alert("Export Error", error instanceof Error ? error.message : "Failed to export tracks.");
     }
   }
+
 
 }
 
