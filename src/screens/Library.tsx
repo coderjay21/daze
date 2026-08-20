@@ -1,4 +1,5 @@
 import { GenericMediaItem, TrackItem } from "@/components";
+import SupportDazeModal from "@/components/common/SupportDazeModal";
 import type { Collection } from "@/services";
 import { useCurrentSong, useLibraryStore, usePlayerActions } from "@/stores";
 import { getScreenPaddingBottom, theme } from "@/utils";
@@ -80,6 +81,7 @@ const LibraryScreen: React.FC<LibraryScreenProps> = () => {
     null,
   );
   const [menuVisible, setMenuVisible] = useState<string | null>(null);
+  const [supportModalVisible, setSupportModalVisible] = useState(false);
 
   const scrollY = useRef(new Animated.Value(0)).current;
 
@@ -662,70 +664,82 @@ const LibraryScreen: React.FC<LibraryScreenProps> = () => {
       style={[styles.container, { backgroundColor: theme.colors.background }]}
     >
       <View style={styles.header}>
-        <View style={styles.tabs}>
-          <TouchableOpacity
-            onPress={() => setActiveTab("collections")}
-            style={[
-              styles.tab,
-              activeTab === "collections" && {
-                backgroundColor: theme.colors.primary,
-              },
-            ]}
-            activeOpacity={0.7}
-          >
-            <MaterialIcons
-              name="library-music"
-              size={18}
-              color={
-                activeTab === "collections" ? "#000000" : theme.colors.onSurface
-              }
-            />
-            <Text
-              variant="labelLarge"
+        <View style={styles.headerRow}>
+          <View style={styles.tabs}>
+            <TouchableOpacity
+              onPress={() => setActiveTab("collections")}
               style={[
-                styles.tabLabel,
-                {
-                  color:
-                    activeTab === "collections"
-                      ? "#000000"
-                      : theme.colors.onSurface,
+                styles.tab,
+                activeTab === "collections" && {
+                  backgroundColor: theme.colors.primary,
                 },
               ]}
+              activeOpacity={0.7}
             >
-              Collections
-            </Text>
-          </TouchableOpacity>
+              <MaterialIcons
+                name="library-music"
+                size={18}
+                color={
+                  activeTab === "collections" ? "#000000" : theme.colors.onSurface
+                }
+              />
+              <Text
+                variant="labelLarge"
+                style={[
+                  styles.tabLabel,
+                  {
+                    color:
+                      activeTab === "collections"
+                        ? "#000000"
+                        : theme.colors.onSurface,
+                  },
+                ]}
+              >
+                Collections
+              </Text>
+            </TouchableOpacity>
 
-          <TouchableOpacity
-            onPress={() => {
-              setSelectedCollection(null);
-              setActiveTab("media");
-            }}
-            style={[
-              styles.tab,
-              activeTab === "media" && {
-                backgroundColor: theme.colors.primary,
-              },
-            ]}
-            activeOpacity={0.7}
-          >
-            <MaterialIcons
-              name="bookmark"
-              size={18}
-              color={activeTab === "media" ? "#000000" : theme.colors.onSurface}
-            />
-            <Text
-              variant="labelLarge"
+            <TouchableOpacity
+              onPress={() => {
+                setSelectedCollection(null);
+                setActiveTab("media");
+              }}
               style={[
-                styles.tabLabel,
-                {
-                  color:
-                    activeTab === "media" ? "#000000" : theme.colors.onSurface,
+                styles.tab,
+                activeTab === "media" && {
+                  backgroundColor: theme.colors.primary,
                 },
               ]}
+              activeOpacity={0.7}
             >
-              Saved Media
-            </Text>
+              <MaterialIcons
+                name="bookmark"
+                size={18}
+                color={activeTab === "media" ? "#000000" : theme.colors.onSurface}
+              />
+              <Text
+                variant="labelLarge"
+                style={[
+                  styles.tabLabel,
+                  {
+                    color:
+                      activeTab === "media" ? "#000000" : theme.colors.onSurface,
+                  },
+                ]}
+              >
+                Saved Media
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Support Daze Button */}
+          <TouchableOpacity
+            onPress={() => setSupportModalVisible(true)}
+            style={styles.supportButton}
+            activeOpacity={0.8}
+          >
+            <MaterialIcons name="favorite" size={16} color="#22c55e" />
+            <Text style={styles.supportButtonText}>Support</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -846,6 +860,12 @@ const LibraryScreen: React.FC<LibraryScreenProps> = () => {
           </View>
         </View>
       </Modal>
+
+      {/* Support Daze Modal */}
+      <SupportDazeModal
+        visible={supportModalVisible}
+        onClose={() => setSupportModalVisible(false)}
+      />
     </View>
   );
 };
@@ -858,6 +878,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 16,
     paddingBottom: 12,
+  },
+  headerRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
   },
   tabs: {
     flexDirection: "row",
@@ -874,6 +899,22 @@ const styles = StyleSheet.create({
   },
   tabLabel: {
     fontWeight: "700",
+  },
+  supportButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: "rgba(34, 197, 94, 0.15)",
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "rgba(34, 197, 94, 0.3)",
+  },
+  supportButtonText: {
+    color: "#22c55e",
+    fontWeight: "700",
+    fontSize: 13,
   },
   scrollView: {
     flex: 1,
