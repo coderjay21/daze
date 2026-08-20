@@ -31,11 +31,16 @@ jobs:
       - name: Prebuild Native Android
         run: npx expo prebuild --clean --platform android
 
-      - name: Configure Gradle Environment & Split Architecture
+      - name: Fix Reanimated Node Path & Split ABI in Gradle
         run: |
+          NODE_PATH=$(which node)
+          echo "export NODE_BINARY=$NODE_PATH" > android/.env
+          echo "NODE_BINARY=$NODE_PATH" >> android/gradle.properties
           echo "android.enableSeparateBuildPerCPUArchitecture=true" >> android/gradle.properties
-          echo "org.gradle.jvmargs=-Xmx4096m -XX:MaxMetaspaceSize=512m" >> android/gradle.properties
-          echo "NODE_BINARY=$(which node)" >> $GITHUB_ENV
+          echo "org.gradle.jvmargs=-Xmx4096m -XX:MaxMetaspaceSize=1024m" >> android/gradle.properties
+          echo "reactNativeArchitectures=arm64-v8a,armeabi-v7a,x86,x86_64" >> android/gradle.properties
+          sudo ln -sf $NODE_PATH /usr/bin/node
+          sudo ln -sf $NODE_PATH /usr/local/bin/node
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v3
@@ -43,11 +48,10 @@ jobs:
       - name: Build Split APKs with Gradle
         working-directory: android
         env:
-          NODE_BINARY: ${{ env.NODE_BINARY }}
+          NODE_BINARY: /usr/bin/node
         run: |
-          export NODE_BINARY=$(which node)
-          export PATH=$PATH:$(dirname $(which node))
-          ./gradlew assembleRelease --no-daemon -PreactNativeArchitectures=arm64-v8a,armeabi-v7a,x86,x86_64
+          chmod +x gradlew
+          ./gradlew assembleRelease --no-daemon -Dorg.gradle.logging.level=lifecycle
 
       - name: Collect Generated Split APKs
         run: |
