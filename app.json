@@ -15,7 +15,6 @@
     "android": {
       "package": "online.jayagarwal.daze",
       "versionCode": 8,
-      "enableSeparateBuildPerCPUArchitecture": true,
       "permissions": [
         "INTERNET",
         "ACCESS_NETWORK_STATE",
@@ -87,7 +86,7 @@
     },
     "extra": {
       "eas": {
-        "projectId": ""
+        "projectId": "3d178e2d-3d44-4820-8025-a13a07ce01d8"
       }
     },
     "ios": {
