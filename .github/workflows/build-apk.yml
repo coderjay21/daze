@@ -22,6 +22,11 @@ jobs:
       - name: Install Dependencies
         run: npm install --legacy-peer-deps
 
+      - name: Link EAS Project
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: eas init --id 3d178e2d-3d44-4820-8025-a13a07ce01d8 --non-interactive || eas init --account devjay_21 --slug daze --non-interactive
+
       - name: Trigger EAS Cloud Build
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
