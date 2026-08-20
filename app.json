@@ -78,15 +78,7 @@
           "position": "relative"
         }
       ],
-      "expo-speech-recognition",
-      [
-        "expo-build-properties",
-        {
-          "android": {
-            "enableSeparateBuildPerCPUArchitecture": true
-          }
-        }
-      ]
+      "expo-speech-recognition"
     ],
     "experiments": {
       "typedRoutes": true,
