@@ -255,82 +255,71 @@ export class DownloadService {
     }
   }
 
-      async exportTracks(songIds: string[]): Promise<void> {
-    try {
-      // 1. Ask user to pick a folder (Downloads or Music) using SAF
-      const permissions = await FileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync();
-      if (!permissions.granted) {
-        Alert.alert("Export Cancelled", "Folder selection is required to export songs.");
-        return;
-      }
+      import * as FileSystem from "expo-file-system/legacy";
+import * as Sharing from "expo-sharing";
+import { Alert } from "react-native";
+import { DownloadManager } from "@/modules/download-manager";
+import { Song, AUDIO_QUALITY } from "@saavn-labs/sdk";
 
-      const selectedDirUri = permissions.directoryUri;
-      const downloads = await this.getDownloadedTracks();
-      const storageInfo = await DownloadManager.getStorageInfo();
-      let exportedCount = 0;
+// Export function
+async exportTracks(songIds: string[]): Promise<void> {
+  try {
+    const isAvailable = await Sharing.isAvailableAsync();
+    if (!isAvailable) {
+      Alert.alert("Error", "Sharing is not supported on this device.");
+      return;
+    }
 
-      for (const songId of songIds) {
-        const download = downloads.find((d) => d.id === songId);
-        if (!download) continue;
+    const downloads = await this.getDownloadedTracks();
+    const storageInfo = await DownloadManager.getStorageInfo();
 
-        const artist = download.song?.artists?.primary?.[0]?.name || "Unknown";
-        const title = download.song?.title || "Track";
-        const safeArtist = artist.replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 30);
-        const safeTitle = title.replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 30);
-        const filename = `${safeTitle} - ${safeArtist}`;
-        const tempUri = `${FileSystem.cacheDirectory}${filename}.mp3`;
+    for (const songId of songIds) {
+      const download = downloads.find((d) => d.id === songId);
+      if (!download) continue;
 
-        // Resolve track source
-        const nativeTrack = (storageInfo as any)?.tracks?.find((t: any) => t.id === songId);
-        const sourcePath = nativeTrack?.path || download.filePath;
+      const artist = download.song?.artists?.primary?.[0]?.name || "Unknown";
+      const title = download.song?.title || "Track";
+      const safeArtist = artist.replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 30);
+      const safeTitle = title.replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 30);
+      const filename = `${safeTitle} - ${safeArtist}.mp3`;
+      const exportUri = `${FileSystem.cacheDirectory}${filename}`;
 
-        if (sourcePath.startsWith("file://") || sourcePath.startsWith("/")) {
-          await FileSystem.copyAsync({
-            from: sourcePath,
-            to: tempUri,
-          });
-        } else {
-          const encrypted =
-            download.song.media?.encryptedUrl ??
-            (await Song.getById({ songIds: songId })).songs?.[0]?.media?.encryptedUrl;
+      // Source file resolve
+      const nativeTrack = (storageInfo as any)?.tracks?.find((t: any) => t.id === songId);
+      const sourcePath = nativeTrack?.path || download.filePath;
 
-          if (encrypted) {
-            const urls = await Song.experimental.fetchStreamUrls(encrypted, "edge", true);
-            const streamUrl = urls?.[AUDIO_QUALITY.HIGH]?.url || urls?.[AUDIO_QUALITY.MEDIUM]?.url;
-            if (streamUrl) {
-              await FileSystem.downloadAsync(streamUrl, tempUri);
-            }
+      if (sourcePath && (sourcePath.startsWith("file://") || sourcePath.startsWith("/"))) {
+        await FileSystem.copyAsync({
+          from: sourcePath,
+          to: exportUri,
+        });
+      } else {
+        const encrypted =
+          download.song.media?.encryptedUrl ??
+          (await Song.getById({ songIds: songId })).songs?.[0]?.media?.encryptedUrl;
+
+        if (encrypted) {
+          const urls = await Song.experimental.fetchStreamUrls(encrypted, "edge", true);
+          const streamUrl = urls?.[AUDIO_QUALITY.HIGH]?.url || urls?.[AUDIO_QUALITY.MEDIUM]?.url;
+          if (streamUrl) {
+            await FileSystem.downloadAsync(streamUrl, exportUri);
           }
         }
-
-        // Read binary content as Base64 and write into the user-selected folder
-        const base64Data = await FileSystem.readAsStringAsync(tempUri, {
-          encoding: FileSystem.EncodingType.Base64,
-        });
-
-        const targetFileUri = await FileSystem.StorageAccessFramework.createFileAsync(
-          selectedDirUri,
-          filename,
-          "audio/mpeg"
-        );
-
-        await FileSystem.writeAsStringAsync(targetFileUri, base64Data, {
-          encoding: FileSystem.EncodingType.Base64,
-        });
-
-        // Cleanup temporary cache file
-        await FileSystem.deleteAsync(tempUri, { idempotent: true });
-        exportedCount++;
       }
 
-      if (exportedCount > 0) {
-        Alert.alert("Success !!", `${exportedCount} track(s) exported directly to your chosen folder!`);
-      }
-    } catch (error) {
-      console.error("[DownloadService] SAF Export failed:", error);
-      Alert.alert("Export Error", error instanceof Error ? error.message : "Failed to export tracks.");
+      // Open Android Native Share / Save Sheet
+      await Sharing.shareAsync(exportUri, {
+        mimeType: "audio/mpeg",
+        dialogTitle: `Save or Share ${title}`,
+        UTI: "public.mp3",
+      });
     }
+  } catch (error) {
+    console.error("[DownloadService] Export failed:", error);
+    Alert.alert("Export Error", error instanceof Error ? error.message : "Failed to export track.");
   }
+}
+
 
 
 }
