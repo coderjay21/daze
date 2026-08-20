@@ -32,7 +32,7 @@ jobs:
       - name: Prebuild Native Android
         run: npx expo prebuild --clean --platform android
 
-      - name: Enable Architecture Splitting & Optimizations
+      - name: Enable Architecture Splitting in Gradle
         run: |
           echo "android.enableSeparateBuildPerCPUArchitecture=true" >> android/gradle.properties
           echo "org.gradle.jvmargs=-Xmx4096m -XX:MaxMetaspaceSize=512m" >> android/gradle.properties
@@ -44,13 +44,13 @@ jobs:
         working-directory: android
         run: ./gradlew assembleRelease --no-daemon
 
-      - name: Organize & Rename Generated APKs
+      - name: Collect Generated Split APKs
         run: |
           mkdir -p build-apks
           find android/app/build/outputs/apk/release/ -name "*.apk" -exec cp {} build-apks/ \;
           ls -lh build-apks/
 
-      - name: Upload APKs as Workflow Artifacts
+      - name: Upload APK Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: daze-split-apks
