@@ -21,6 +21,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
+          cache: 'npm'
 
       - name: Install Dependencies
         run: npm install --legacy-peer-deps
@@ -28,15 +29,21 @@ jobs:
       - name: Generate Native Android Directory
         run: npx expo prebuild --platform android --clean
 
-      - name: Enable Architecture Splitting
+      - name: Configure Gradle Environment
         run: |
           echo "android.enableSeparateBuildPerCPUArchitecture=true" >> android/gradle.properties
+          echo "org.gradle.jvmargs=-Xmx4096m -XX:MaxMetaspaceSize=1024m" >> android/gradle.properties
 
       - name: Build Split Release APKs
         working-directory: android
-        run: ./gradlew assembleRelease --no-daemon
+        env:
+          NODE_BINARY: node
+          PATH: ${{ env.PATH }}
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleRelease --no-daemon -PreactNativeArchitectures=arm64-v8a
 
-      - name: Upload arm64-v8a APK (Fast & Light ~25MB)
+      - name: Upload arm64-v8a APK (Lightweight ~25-30MB)
         uses: actions/upload-artifact@v4
         with:
           name: daze-arm64-v8a-apk
