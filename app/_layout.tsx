@@ -1,6 +1,7 @@
 import AppUpdateDialog from "@/components/common/AppUpdateDialog";
 import GlobalSnackbar from "@/components/common/GlobalSnackbar";
-import { playerService } from "@/services/PlayerService";
+import SupportDazeModal from "@/components/common/SupportDazeModal";
+import { playerService, setSevenSongsCallback } from "@/services/PlayerService";
 import { updateService } from "@/services/UpdateService";
 import { usePlayerStore } from "@/stores/playerStore";
 import { iconFonts } from "@/utils/loadFonts";
@@ -70,6 +71,7 @@ export default function Layout() {
   });
 
   const [isExpired, setIsExpired] = useState(false);
+  const [supportModalVisible, setSupportModalVisible] = useState(false);
   const { restoreLastTrack } = usePlayerStore();
 
   useEffect(() => {
@@ -77,6 +79,11 @@ export default function Layout() {
     if (Date.now() > SHUTDOWN_DATE) {
       setIsExpired(true);
     }
+
+    // Trigger support popup after 7 songs play
+    setSevenSongsCallback(() => {
+      setSupportModalVisible(true);
+    });
   }, []);
 
   useEffect(() => {
@@ -105,7 +112,6 @@ export default function Layout() {
 
     setStatusBarBackgroundColor("#121212", false);
 
-    // Component unmount par playback cleanly close karega (bina normal lockscreen play disturb kiye)
     return () => {
       void playerService.stop();
     };
@@ -204,8 +210,13 @@ export default function Layout() {
             }}
           />
         </Stack>
+
         <AppUpdateDialog />
         <GlobalSnackbar />
+        <SupportDazeModal
+          visible={supportModalVisible}
+          onClose={() => setSupportModalVisible(false)}
+        />
       </SafeAreaView>
     </PaperProvider>
   );
