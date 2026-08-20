@@ -1,20 +1,20 @@
 import React from "react";
 import {
+  Alert,
+  Image,
+  Linking,
   Modal,
-  View,
   StyleSheet,
   TouchableOpacity,
-  Linking,
-  Image,
+  View,
 } from "react-native";
-import { Text, IconButton } from "react-native-paper";
+import { IconButton, Text } from "react-native-paper";
 
 interface SupportDazeModalProps {
   visible: boolean;
   onClose: () => void;
 }
 
-// UPI Details (Change if needed)
 const UPI_ID = "jayagarwal.code@okicici";
 const PAYEE_NAME = "Daze - Live in music";
 const NOTE = "Server Upkeep & Support Daze";
@@ -23,22 +23,35 @@ export default function SupportDazeModal({
   visible,
   onClose,
 }: SupportDazeModalProps) {
-  const handlePayViaUPI = async (amount: number) => {
-    const upiUrl = `upi://pay?pa=${UPI_ID}&pn=${encodeURIComponent(
-      PAYEE_NAME
-    )}&tn=${encodeURIComponent(NOTE)}&am=${amount}&cu=INR`;
+  const handlePayViaUPI = async (amount?: number) => {
+    let upiUrl = `upi://pay?pa=${UPI_ID}&pn=${encodeURIComponent(
+      PAYEE_NAME,
+    )}&cu=INR`;
 
-    const canOpen = await Linking.canOpenURL(upiUrl);
-    if (canOpen) {
-      await Linking.openURL(upiUrl);
+    if (amount) {
+      upiUrl += `&am=${amount}&tn=${encodeURIComponent(NOTE)}`;
     } else {
-      // Fallback intent
-      await Linking.openURL(`upi://pay?pa=${UPI_ID}&pn=${encodeURIComponent(PAYEE_NAME)}`);
+      upiUrl += `&tn=${encodeURIComponent(NOTE)}`;
+    }
+
+    try {
+      const canOpen = await Linking.canOpenURL(upiUrl);
+      if (canOpen) {
+        await Linking.openURL(upiUrl);
+      } else {
+        // Fallback open attempt
+        await Linking.openURL(upiUrl);
+      }
+    } catch (error) {
+      Alert.alert(
+        "UPI App Not Found",
+        "Could not open UPI app directly. Please scan the QR code above using GPay, PhonePe, or Paytm.",
+      );
     }
   };
 
-  const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(
-    `upi://pay?pa=${UPI_ID}&pn=${PAYEE_NAME}&cu=INR`
+  const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=260x260&data=${encodeURIComponent(
+    `upi://pay?pa=${UPI_ID}&pn=${PAYEE_NAME}&cu=INR`,
   )}`;
 
   return (
@@ -63,7 +76,7 @@ export default function SupportDazeModal({
           </View>
 
           <Text variant="bodyMedium" style={styles.desc}>
-            Daze is free & ad-free. Help us keep the servers alive and running beyond 31st August!
+            Daze is free & ad-free. Help us keep the streaming servers alive and running beyond 31st August!
           </Text>
 
           {/* QR Code */}
@@ -77,12 +90,13 @@ export default function SupportDazeModal({
           </View>
 
           {/* Direct UPI Quick Pay Buttons */}
-          <Text style={styles.subText}>Quick Pay with any UPI App:</Text>
+          <Text style={styles.subText}>Quick Pay with Preset Amount:</Text>
           <View style={styles.buttonRow}>
             {[29, 49, 99].map((amt) => (
               <TouchableOpacity
                 key={amt}
                 style={styles.amtBtn}
+                activeOpacity={0.7}
                 onPress={() => handlePayViaUPI(amt)}
               >
                 <Text style={styles.amtText}>₹{amt}</Text>
@@ -90,11 +104,15 @@ export default function SupportDazeModal({
             ))}
           </View>
 
+          {/* Custom Amount UPI Direct Button */}
           <TouchableOpacity
             style={styles.directPayBtn}
-            onPress={() => handlePayViaUPI(50)}
+            activeOpacity={0.8}
+            onPress={() => handlePayViaUPI()}
           >
-            <Text style={styles.directPayText}>Pay via GPay / PhonePe / Paytm</Text>
+            <Text style={styles.directPayText}>
+              Pay Custom via Any UPI App
+            </Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -105,14 +123,14 @@ export default function SupportDazeModal({
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: "rgba(0,0,0,0.8)",
+    backgroundColor: "rgba(0, 0, 0, 0.85)",
     justifyContent: "center",
     alignItems: "center",
     padding: 20,
   },
   card: {
     backgroundColor: "#18181b",
-    borderRadius: 20,
+    borderRadius: 24,
     padding: 20,
     width: "100%",
     maxWidth: 340,
@@ -123,10 +141,10 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 8,
+    marginBottom: 6,
   },
   headerTitle: {
-    color: "#fff",
+    color: "#ffffff",
     fontWeight: "700",
     fontSize: 18,
   },
@@ -134,14 +152,14 @@ const styles = StyleSheet.create({
     color: "#a1a1aa",
     fontSize: 13,
     lineHeight: 18,
-    marginBottom: 16,
+    marginBottom: 14,
   },
   qrContainer: {
     alignItems: "center",
-    backgroundColor: "#fff",
+    backgroundColor: "#ffffff",
     padding: 12,
-    borderRadius: 14,
-    marginBottom: 16,
+    borderRadius: 16,
+    marginBottom: 14,
   },
   qrImage: {
     width: 140,
@@ -156,20 +174,20 @@ const styles = StyleSheet.create({
   subText: {
     color: "#71717a",
     fontSize: 12,
-    marginBottom: 10,
+    marginBottom: 8,
     textAlign: "center",
   },
   buttonRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     marginBottom: 12,
+    gap: 8,
   },
   amtBtn: {
     flex: 1,
     backgroundColor: "#27272a",
     paddingVertical: 10,
     borderRadius: 10,
-    marginHorizontal: 4,
     alignItems: "center",
     borderWidth: 1,
     borderColor: "#3f3f46",
