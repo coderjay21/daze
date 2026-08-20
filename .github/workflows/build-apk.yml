@@ -1,4 +1,4 @@
-name: Build Android APKs
+name: Build Split Android APKs
 
 on:
   workflow_dispatch:
@@ -11,33 +11,33 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Setup Java JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
 
-      - name: Setup EAS CLI
-        run: npm install -g eas-cli
-
       - name: Install Dependencies
         run: npm install --legacy-peer-deps
 
-      - name: Clean Native Directories
-        run: rm -rf android ios
-
-      - name: Prebuild Native Android
-        run: npx expo prebuild --clean --platform android
+      - name: Generate Native Android Directory
+        run: npx expo prebuild --platform android --clean
 
       - name: Enable Architecture Splitting
         run: |
           echo "android.enableSeparateBuildPerCPUArchitecture=true" >> android/gradle.properties
 
-      - name: Initialize EAS Project
-        env:
-          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-        run: eas init --account devjay_21 --non-interactive
+      - name: Build Split Release APKs
+        working-directory: android
+        run: ./gradlew assembleRelease --no-daemon
 
-      - name: Build Split APKs via EAS
-        env:
-          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-        run: eas build -p android --profile preview --non-interactive
+      - name: Upload arm64-v8a APK (Fast & Light ~25MB)
+        uses: actions/upload-artifact@v4
+        with:
+          name: daze-arm64-v8a-apk
+          path: android/app/build/outputs/apk/release/*arm64-v8a*.apk
