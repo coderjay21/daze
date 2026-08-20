@@ -15,6 +15,7 @@
     "android": {
       "package": "online.jayagarwal.daze",
       "versionCode": 8,
+      "enableSeparateBuildPerCPUArchitecture": true,
       "permissions": [
         "INTERNET",
         "ACCESS_NETWORK_STATE",
