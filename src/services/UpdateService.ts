@@ -58,14 +58,15 @@ class UpdateService {
 
       const updateAvailable = isNewerVersion(latestVersion, currentVersion);
       if (!updateAvailable) return;
+// UpdateService.ts mein checkOnLaunch method ke andar:
+useUpdateStore.getState().setUpdateAvailable({
+  latestVersion,
+  apkUrl: apk.browser_download_url,
+  releaseName: data.name ?? `Daze v${latestVersion}`,
+  releaseUrl: "https://daze.jayagarwal.online", // <-- Website URL
+  forceUpdate: false,
+});
 
-      useUpdateStore.getState().setUpdateAvailable({
-        latestVersion,
-        apkUrl: apk.browser_download_url,
-        releaseName: data.name ?? `Daze v${latestVersion}`,
-        releaseUrl: data.html_url,
-        forceUpdate: false,
-      });
     } catch (e) {
       console.error("Update check failed:", e);
     }
