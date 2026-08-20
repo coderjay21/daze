@@ -1,4 +1,4 @@
-name: EAS Android Build
+name: Build Android APKs
 
 on:
   workflow_dispatch:
@@ -16,18 +16,28 @@ jobs:
         with:
           node-version: 20
 
-      - name: Install EAS CLI
+      - name: Setup EAS CLI
         run: npm install -g eas-cli
 
       - name: Install Dependencies
         run: npm install --legacy-peer-deps
 
-      - name: Link EAS Project
-        env:
-          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-        run: eas init --id 3d178e2d-3d44-4820-8025-a13a07ce01d8 --non-interactive || eas init --account devjay_21 --slug daze --non-interactive
+      - name: Clean Native Directories
+        run: rm -rf android ios
 
-      - name: Trigger EAS Cloud Build
+      - name: Prebuild Native Android
+        run: npx expo prebuild --clean --platform android
+
+      - name: Enable Architecture Splitting
+        run: |
+          echo "android.enableSeparateBuildPerCPUArchitecture=true" >> android/gradle.properties
+
+      - name: Initialize EAS Project
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-        run: eas build --platform android --profile preview --non-interactive
+        run: eas init --account devjay_21 --non-interactive
+
+      - name: Build Split APKs via EAS
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: eas build -p android --profile preview --non-interactive
