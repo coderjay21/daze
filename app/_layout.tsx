@@ -5,8 +5,10 @@ import { playerService, setSevenSongsCallback } from "@/services/PlayerService";
 import { updateService } from "@/services/UpdateService";
 import { usePlayerStore } from "@/stores/playerStore";
 import { iconFonts } from "@/utils/loadFonts";
+import { MaterialIcons } from "@expo/vector-icons";
 import { setFetchConfig } from "@saavn-labs/sdk";
 import { useFonts } from "expo-font";
+import * as Network from "expo-network";
 import { Link, Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { setStatusBarBackgroundColor, StatusBar } from "expo-status-bar";
@@ -70,9 +72,26 @@ export default function Layout() {
     ...iconFonts,
   });
 
+  const [isOnline, setIsOnline] = useState(true);
   const [isExpired, setIsExpired] = useState(false);
   const [supportModalVisible, setSupportModalVisible] = useState(false);
   const { restoreLastTrack } = usePlayerStore();
+
+  useEffect(() => {
+    // Check initial network state
+    void Network.getNetworkStateAsync().then((state) => {
+      setIsOnline(Boolean(state.isConnected && state.isInternetReachable !== false));
+    });
+
+    // Real-time network listener
+    const subscription = Network.addNetworkStateListener((state) => {
+      setIsOnline(Boolean(state.isConnected && state.isInternetReachable !== false));
+    });
+
+    return () => {
+      subscription.remove();
+    };
+  }, []);
 
   useEffect(() => {
     // Check if free quota expired
@@ -108,7 +127,7 @@ export default function Layout() {
 
   useEffect(() => {
     void playerService.initialize();
-    
+
     // Check for updates on startup
     const timer = setTimeout(() => {
       void updateService.checkOnLaunch();
@@ -164,6 +183,16 @@ export default function Layout() {
         style={styles.root}
         edges={["top", "bottom", "left", "right"]}
       >
+        {/* Global Offline Bar */}
+        {!isOnline && (
+          <View style={styles.offlineBanner}>
+            <MaterialIcons name="cloud-off" size={16} color="#ffffff" />
+            <Text style={styles.offlineText}>
+              You are offline • Listen to downloaded songs
+            </Text>
+          </View>
+        )}
+
         <Link
           rel="stylesheet"
           href="https://cdn.jsdelivr.net/npm/@mdi/font/css/materialdesignicons.min.css"
@@ -234,6 +263,22 @@ const styles = StyleSheet.create({
   },
   screenStyle: {
     backgroundColor: "#121212",
+  },
+  offlineBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    backgroundColor: "#ef4444",
+    paddingVertical: 7,
+    paddingHorizontal: 12,
+    zIndex: 9999,
+  },
+  offlineText: {
+    color: "#ffffff",
+    fontSize: 12,
+    fontWeight: "700",
+    letterSpacing: 0.2,
   },
   expiredContainer: {
     flex: 1,
