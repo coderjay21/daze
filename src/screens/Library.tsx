@@ -84,6 +84,26 @@ const LibraryScreen: React.FC<LibraryScreenProps> = () => {
   const [supportModalVisible, setSupportModalVisible] = useState(false);
 
   const scrollY = useRef(new Animated.Value(0)).current;
+  const pulseAnim = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    const animation = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, {
+          toValue: 1.08,
+          duration: 900,
+          useNativeDriver: true,
+        }),
+        Animated.timing(pulseAnim, {
+          toValue: 1,
+          duration: 900,
+          useNativeDriver: true,
+        }),
+      ]),
+    );
+    animation.start();
+    return () => animation.stop();
+  }, [pulseAnim]);
 
   const loadLibraryData = useCallback(async () => {
     const success = await loadLibrary();
@@ -732,15 +752,17 @@ const LibraryScreen: React.FC<LibraryScreenProps> = () => {
             </TouchableOpacity>
           </View>
 
-          {/* Support Daze Button */}
-          <TouchableOpacity
-            onPress={() => setSupportModalVisible(true)}
-            style={styles.supportButton}
-            activeOpacity={0.8}
-          >
-            <MaterialIcons name="favorite" size={16} color="#22c55e" />
-            <Text style={styles.supportButtonText}>Support</Text>
-          </TouchableOpacity>
+          {/* Animated Glowing Support Daze Button */}
+          <Animated.View style={{ transform: [{ scale: pulseAnim }] }}>
+            <TouchableOpacity
+              onPress={() => setSupportModalVisible(true)}
+              style={styles.supportButton}
+              activeOpacity={0.8}
+            >
+              <MaterialIcons name="favorite" size={16} color="#22c55e" />
+              <Text style={styles.supportButtonText}>Support</Text>
+            </TouchableOpacity>
+          </Animated.View>
         </View>
       </View>
 
@@ -903,17 +925,22 @@ const styles = StyleSheet.create({
   supportButton: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 4,
-    backgroundColor: "rgba(34, 197, 94, 0.15)",
-    paddingVertical: 6,
-    paddingHorizontal: 12,
+    gap: 6,
+    backgroundColor: "rgba(34, 197, 94, 0.2)",
+    paddingVertical: 7,
+    paddingHorizontal: 14,
     borderRadius: 20,
-    borderWidth: 1,
-    borderColor: "rgba(34, 197, 94, 0.3)",
+    borderWidth: 1.5,
+    borderColor: "#22c55e",
+    shadowColor: "#22c55e",
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.5,
+    shadowRadius: 6,
+    elevation: 4,
   },
   supportButtonText: {
     color: "#22c55e",
-    fontWeight: "700",
+    fontWeight: "800",
     fontSize: 13,
   },
   scrollView: {
