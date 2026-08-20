@@ -29,22 +29,28 @@ jobs:
       - name: Prebuild Native Android
         run: npx expo prebuild --platform android --clean
 
-      - name: Setup Node Binary Symlink & Properties
+      - name: Setup Node Binary for Gradle
+        run: |
+          echo "NODE_BINARY=$(command -v node)" >> $GITHUB_ENV
+          echo "PATH=$(dirname $(command -v node)):$PATH" >> $GITHUB_ENV
+          which node
+          node --version
+
+      - name: Setup gradle.properties
         run: |
           echo "android.enableSeparateBuildPerCPUArchitecture=true" >> android/gradle.properties
           echo "reactNativeArchitectures=arm64-v8a" >> android/gradle.properties
           echo "org.gradle.jvmargs=-Xmx4096m -XX:MaxMetaspaceSize=1024m" >> android/gradle.properties
-          which node
 
       - name: Build Split Release APKs
         working-directory: android
         env:
-          NODE_BINARY: /usr/local/bin/node
+          NODE_BINARY: ${{ env.NODE_BINARY }}
         run: |
           chmod +x gradlew
-          ./gradlew assembleRelease --no-daemon
+          ./gradlew assembleRelease --no-daemon --stacktrace
 
-      - name: Upload arm64-v8a APK (Lightweight ~25-30MB)
+      - name: Upload arm64-v8a APK (Lightweight \~25-30MB)
         uses: actions/upload-artifact@v4
         with:
           name: daze-arm64-v8a-apk
