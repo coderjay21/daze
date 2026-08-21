@@ -140,7 +140,7 @@ export default function TabLayout() {
                     { color: focused ? "#1DB954" : "#b3b3b3" },
                   ]}
                 >
-                  Hub ⚡
+                  Hub
                 </Text>
               </View>
             ),
