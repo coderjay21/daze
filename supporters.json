@@ -1,10 +1,11 @@
 {
   "month": "August 2026",
-  "current": 150,
+  "current": 168,
   "goal": 500,
   "supporters": [
     { "name": "Chaitanya", "amount": 100, "badge": "👑 Top Fan" },
     { "name": "Aman S.", "amount": 30, "badge": "⭐ VIP" },
-    { "name": "Nikhil", "amount": 20, "badge": "☕ Chai Sponsor" }
+    { "name": "Nikhil", "amount": 20, "badge": "☕ Chai Sponsor" },
+    { "name": "Kashish", "amount": 18, "badge": "☕ Chai Sponsor" }
   ]
 }
