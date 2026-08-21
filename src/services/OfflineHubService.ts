@@ -3,8 +3,8 @@ import { useOfflineHubStore, HubTrack } from "@/stores/offlineHubStore";
 
 const HUB_DIR = `${FileSystem.documentDirectory}offline_hub/`;
 
-class OfflineHubService {
-  async initDirectory() {
+export class OfflineHubService {
+  private static async initDirectory() {
     try {
       const dirInfo = await FileSystem.getInfoAsync(HUB_DIR);
       if (!dirInfo.exists) {
@@ -13,16 +13,30 @@ class OfflineHubService {
     } catch (_) {}
   }
 
-  // Download a single track to Hub
-  async downloadTrackToHub(
-    song: { id: string; title: string; artist: string; artwork: string; downloadUrl: string; mood: any }
-  ): Promise<boolean> {
+  static getTotalUsedBytes(): number {
+    try {
+      const tracks = useOfflineHubStore.getState().cachedTracks || [];
+      return tracks.reduce((acc, t) => acc + (t?.fileSizeBytes || 0), 0);
+    } catch (_) {
+      return 0;
+    }
+  }
+
+  static async downloadTrackToHub(song: {
+    id: string;
+    title: string;
+    artist: string;
+    artwork: string;
+    downloadUrl: string;
+    mood?: any;
+  }): Promise<boolean> {
+    if (!song?.downloadUrl || !song?.id) return false;
+
     try {
       await this.initDirectory();
       const store = useOfflineHubStore.getState();
       const targetFile = `${HUB_DIR}${song.id}.m4a`;
 
-      // Evict space if needed before downloading
       await this.ensureSpaceForNewTrack(10 * 1024 * 1024);
 
       const downloadRes = await FileSystem.downloadAsync(song.downloadUrl, targetFile);
@@ -30,9 +44,9 @@ class OfflineHubService {
 
       const newTrack: HubTrack = {
         id: song.id,
-        title: song.title,
-        artist: song.artist,
-        artwork: song.artwork,
+        title: song.title || "Track",
+        artist: song.artist || "Unknown",
+        artwork: song.artwork || "",
         localUri: downloadRes.uri,
         fileSizeBytes: fileInfo.exists ? fileInfo.size : 8 * 1024 * 1024,
         mood: song.mood || "sad",
@@ -48,44 +62,41 @@ class OfflineHubService {
     }
   }
 
-  // FIFO / LRU Auto-Eviction Loop (Maintains user-configured Quota)
-  async ensureSpaceForNewTrack(requiredBytes: number) {
+  static async ensureSpaceForNewTrack(requiredBytes: number) {
     try {
       const store = useOfflineHubStore.getState();
-      const maxBytes = store.maxQuotaMB * 1024 * 1024;
-      let currentBytes = store.getTotalUsedBytes();
+      const maxBytes = (store.maxQuotaMB || 500) * 1024 * 1024;
+      let currentBytes = this.getTotalUsedBytes();
 
       if (currentBytes + requiredBytes <= maxBytes) return;
 
-      const evictable = [...store.cachedTracks]
-        .filter((t) => !t.isPinned)
-        .sort((a, b) => a.playCount - b.playCount || a.addedAt - b.addedAt);
+      const tracks = store.cachedTracks || [];
+      const evictable = [...tracks]
+        .filter((t) => !t?.isPinned)
+        .sort((a, b) => (a?.playCount || 0) - (b?.playCount || 0) || (a?.addedAt || 0) - (b?.addedAt || 0));
 
       for (const track of evictable) {
         if (currentBytes + requiredBytes <= maxBytes) break;
-
         try {
-          await FileSystem.deleteAsync(track.localUri, { idempotent: true });
+          if (track?.localUri) {
+            await FileSystem.deleteAsync(track.localUri, { idempotent: true });
+          }
           store.removeTrackFromHub(track.id);
-          currentBytes -= track.fileSizeBytes;
+          currentBytes -= track.fileSizeBytes || 0;
         } catch (_) {}
       }
     } catch (_) {}
   }
 
-  // Manually Delete Track
-  async removeTrack(id: string) {
+  static async removeTrack(id: string) {
     try {
       const store = useOfflineHubStore.getState();
-      const track = store.cachedTracks.find((t) => t.id === id);
-      if (track) {
-        try {
-          await FileSystem.deleteAsync(track.localUri, { idempotent: true });
-        } catch (_) {}
-        store.removeTrackFromHub(id);
+      const tracks = store.cachedTracks || [];
+      const track = tracks.find((t) => t.id === id);
+      if (track && track.localUri) {
+        await FileSystem.deleteAsync(track.localUri, { idempotent: true });
       }
+      store.removeTrackFromHub(id);
     } catch (_) {}
   }
 }
-
-export const offlineHubService = new OfflineHubService();
