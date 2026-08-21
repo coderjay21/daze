@@ -15,7 +15,7 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useOfflineHubStore } from "@/stores/offlineHubStore";
 import { OfflineHubService } from "@/services/OfflineHubService";
 import { playerService } from "@/services/PlayerService";
-import * as FileSystem from "expo-file-system";
+import * as FileSystem from "expo-file-system/legacy";
 
 const QUOTA_OPTIONS = [250, 500, 1000];
 
@@ -50,7 +50,6 @@ export default function OfflineHubScreen() {
     }, 600);
   }, []);
 
-  // 🔍 Direct Diagnostic Test Function
   const runDiagnosticTest = async () => {
     try {
       setTesting(true);
@@ -60,7 +59,6 @@ export default function OfflineHubScreen() {
         await FileSystem.makeDirectoryAsync(testDir, { intermediates: true });
       }
 
-      // Sample verified test audio URL
       const testAudioUrl = "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3";
       const targetFile = `${testDir}test_track_1.mp3`;
 
