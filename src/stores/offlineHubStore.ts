@@ -20,15 +20,12 @@ interface OfflineHubState {
   maxQuotaMB: number;
   cachedTracks: HubTrack[];
   activeMood: "sad" | "romantic" | "chill" | "upbeat";
-
-  // Actions
   setQuota: (mb: number) => void;
   setHasConfigured: (status: boolean) => void;
   setActiveMood: (mood: "sad" | "romantic" | "chill" | "upbeat") => void;
   addTrackToHub: (track: HubTrack) => void;
   removeTrackFromHub: (id: string) => void;
   togglePinTrack: (id: string) => void;
-  getTotalUsedBytes: () => number;
 }
 
 export const useOfflineHubStore = create<OfflineHubState>()(
@@ -44,35 +41,35 @@ export const useOfflineHubStore = create<OfflineHubState>()(
       setActiveMood: (mood) => set({ activeMood: mood }),
 
       addTrackToHub: (track) => {
-        const current = get().cachedTracks.filter((t) => t.id !== track.id);
+        const list = get().cachedTracks || [];
+        const current = list.filter((t) => t?.id !== track?.id);
         set({ cachedTracks: [track, ...current] });
       },
 
       removeTrackFromHub: (id) => {
-        set({ cachedTracks: get().cachedTracks.filter((t) => t.id !== id) });
+        const list = get().cachedTracks || [];
+        set({ cachedTracks: list.filter((t) => t?.id !== id) });
       },
 
       togglePinTrack: (id) => {
+        const list = get().cachedTracks || [];
         set({
-          cachedTracks: get().cachedTracks.map((t) =>
-            t.id === id ? { ...t, isPinned: !t.isPinned } : t
+          cachedTracks: list.map((t) =>
+            t?.id === id ? { ...t, isPinned: !t.isPinned } : t
           ),
         });
-      },
-
-      getTotalUsedBytes: () => {
-        return get().cachedTracks.reduce(
-          (acc, t) => acc + (t.fileSizeBytes || 0),
-          0
-        );
       },
     }),
     {
       name: "daze_offline_hub_storage",
       storage: createJSONStorage(() => ({
-        getItem: (name: string) => appStorage.getItem(name),
-        setItem: (name: string, value: string) => appStorage.setItem(name, value),
-        removeItem: (name: string) => appStorage.removeItem(name),
+        getItem: async (name: string) => (await appStorage.getItem(name)) || null,
+        setItem: async (name: string, value: string) => {
+          await appStorage.setItem(name, value);
+        },
+        removeItem: async (name: string) => {
+          await appStorage.removeItem(name);
+        },
       })),
     }
   )
