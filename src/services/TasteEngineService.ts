@@ -13,43 +13,52 @@ export class TasteEngineService {
     try {
       if (!track?.id) return;
 
-      // 1. Current Song ko Cache karne ka logic (Delay: 1 second)
-      if (track.downloadUrl) {
-        setTimeout(() => {
-          try {
-            const store = useOfflineHubStore.getState();
-            const alreadyCached = (store.cachedTracks || []).some(
-              (t) => t?.id === track.id
-            );
+      // Background pipeline
+      setTimeout(async () => {
+        try {
+          const store = useOfflineHubStore.getState();
+          const alreadyCached = (store.cachedTracks || []).some(
+            (t) => t?.id === track.id
+          );
 
-            if (!alreadyCached) {
-              void OfflineHubService.downloadTrackToHub({
-                id: track.id,
-                title: track.title,
-                artist: track.artist,
-                artwork: track.artwork,
-                downloadUrl: track.downloadUrl,
-                mood: store.activeMood || "sad",
-              });
+          // 1. Current Song ko Sahi (Real) URL se download karna
+          if (!alreadyCached) {
+            // Player wale stream URL ki jagah direct MP4 URL nikalna
+            const { songs } = await Song.getById({ songIds: track.id });
+            const songData = songs?.[0];
+            
+            if (songData) {
+              const realDownloadUrl =
+                songData.media?.mp4Url?.find((u: any) => u.quality === "320kbps")?.url ||
+                songData.media?.mp4Url?.[0]?.url ||
+                songData.media?.url;
+
+              if (realDownloadUrl) {
+                await OfflineHubService.downloadTrackToHub({
+                  id: track.id,
+                  title: track.title,
+                  artist: track.artist,
+                  artwork: track.artwork,
+                  downloadUrl: realDownloadUrl,
+                  mood: store.activeMood || "sad",
+                });
+              }
             }
-          } catch (_) {}
-        }, 1000);
-      }
+          }
 
-      // 2. SPOTIFY MAGIC: Relatable Gaane dhoondhna (Delay: 3 seconds taaki app hang na ho)
-      setTimeout(() => {
-        void this.fetchAndCacheRelatableTracks(track.id);
-      }, 3000);
-
+          // 2. Relatable Gaane dhoondhna
+          await TasteEngineService.fetchAndCacheRelatableTracks(track.id);
+        } catch (error) {
+          console.error("TasteEngine background process failed:", error);
+        }
+      }, 1000);
     } catch (_) {}
   }
 
-  // 👇 Yeh function bilkul Spotify ke algorithm jaisa kaam karta hai
   private static async fetchAndCacheRelatableTracks(seedSongId: string) {
     try {
-      // Saavn Station API automatically same vibe aur artists ke gaane fetch karta hai
       const { stationId } = await Extras.createEntityStation({ songIds: [seedSongId] });
-      const { songs } = await Song.getByStationId({ stationId, count: 3 }); // Top 3 matching songs
+      const { songs } = await Song.getByStationId({ stationId, count: 3 });
 
       if (!songs || songs.length === 0) return;
 
@@ -59,26 +68,22 @@ export class TasteEngineService {
         const alreadyCached = (store.cachedTracks || []).some((t) => t.id === item.id);
         if (alreadyCached) continue;
 
-        // Best quality audio link nikalna
         const downloadUrl =
           item.media?.mp4Url?.find((u: any) => u.quality === "320kbps")?.url ||
           item.media?.mp4Url?.[0]?.url ||
           item.media?.url;
 
         if (downloadUrl) {
-          // Relatable gaane background me Hub me save ho jayenge
           await OfflineHubService.downloadTrackToHub({
             id: item.id,
             title: item.title,
             artist: item.artists?.primary?.[0]?.name || "Unknown",
             artwork: item.images?.[2]?.url || item.images?.[1]?.url || "",
             downloadUrl,
-            mood: store.activeMood || "sad", // Jo current mood selected hai wahi tag lag jayega
+            mood: store.activeMood || "sad",
           });
         }
       }
-    } catch (error) {
-      // Background me agar network slow ho toh silent fail (app crash nahi hogi)
-    }
+    } catch (_) {}
   }
 }
