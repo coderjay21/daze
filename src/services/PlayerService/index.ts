@@ -82,13 +82,12 @@ export class PlayerService implements IPlayerService {
         await this.maybeExtendQueue(track.id);
       }
 
-      // 👇 TRIGGER TASTE ENGINE (Spotify-like Background Caching) 👇
       TasteEngineService.onSongPlayed({
         id: track.id,
         title: track.title || "",
         artist: track.artist || "Unknown",
         artwork: track.artwork || "",
-        downloadUrl: track.url, 
+        downloadUrl: track.url,
       });
 
       if (track.extraPayload) {
@@ -142,12 +141,23 @@ export class PlayerService implements IPlayerService {
       await PlayerQueue.loadPlaylist(playlistId);
       await TrackPlayer.playSong(song.id, playlistId);
       await TrackPlayer.play();
+
+      // 🔥 DIRECT TRIGGER: Pehle gaane par hi cache start karega 🔥
+      const artist = song.artists?.primary?.map((a) => a.name).join(", ") || "Unknown";
+      const artwork = song.images?.[2]?.url || song.images?.[1]?.url || "";
+      TasteEngineService.onSongPlayed({
+        id: song.id,
+        title: song.title || "",
+        artist,
+        artwork,
+        downloadUrl: validTracks[0]?.url,
+      });
+
     } catch (error) {
       console.error("[Player] Play failed:", error);
     }
   }
 
-  // 👇 METHOD TO PLAY DIRECTLY FROM OFFLINE HUB 👇
   async playTrack(track: { id: string; title: string; artist: string; artwork: string; url: string }): Promise<void> {
     try {
       const trackItem: TrackItem = {
@@ -279,7 +289,6 @@ export class PlayerService implements IPlayerService {
       const album = typeof song.album === "string" ? song.album : song.album?.title || "";
       const artwork = song.images?.[2]?.url || song.images?.[1]?.url || "";
 
-      // 1. Check Standard Downloads
       const isDownloaded = await downloadService.isDownloaded(song.id);
       if (isDownloaded) {
         return {
@@ -294,7 +303,6 @@ export class PlayerService implements IPlayerService {
         };
       }
 
-      // 2. Check Offline Hub (Zero-Data Playback)
       const hubTracks = useOfflineHubStore.getState().cachedTracks || [];
       const cachedHubTrack = hubTracks.find((t) => t.id === song.id);
       if (cachedHubTrack && cachedHubTrack.localUri) {
@@ -310,7 +318,6 @@ export class PlayerService implements IPlayerService {
         };
       }
 
-      // 3. Fallback to Stream Online
       let url: string;
       const encrypted =
         song.media?.encryptedUrl || (await Song.getById({ songIds: song.id })).songs[0]?.media?.encryptedUrl;
