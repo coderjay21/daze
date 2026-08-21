@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import { appStorage } from "./storage";
 
 export interface HubTrack {
   id: string;
@@ -12,15 +12,15 @@ export interface HubTrack {
   mood: "sad" | "romantic" | "chill" | "upbeat";
   addedAt: number;
   playCount: number;
-  isPinned?: boolean; // Agar user ne khud add kiya ho toh auto-delete nahi hoga
+  isPinned?: boolean;
 }
 
 interface OfflineHubState {
-  hasConfigured: boolean; // First time quota setup flag
-  maxQuotaMB: number; // e.g., 250, 500, 1000
+  hasConfigured: boolean;
+  maxQuotaMB: number;
   cachedTracks: HubTrack[];
   activeMood: "sad" | "romantic" | "chill" | "upbeat";
-  
+
   // Actions
   setQuota: (mb: number) => void;
   setHasConfigured: (status: boolean) => void;
@@ -61,12 +61,19 @@ export const useOfflineHubStore = create<OfflineHubState>()(
       },
 
       getTotalUsedBytes: () => {
-        return get().cachedTracks.reduce((acc, t) => acc + (t.fileSizeBytes || 0), 0);
+        return get().cachedTracks.reduce(
+          (acc, t) => acc + (t.fileSizeBytes || 0),
+          0
+        );
       },
     }),
     {
       name: "daze_offline_hub_storage",
-      storage: createJSONStorage(() => AsyncStorage),
+      storage: createJSONStorage(() => ({
+        getItem: (name: string) => appStorage.getItem(name),
+        setItem: (name: string, value: string) => appStorage.setItem(name, value),
+        removeItem: (name: string) => appStorage.removeItem(name),
+      })),
     }
   )
 );
