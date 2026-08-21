@@ -59,7 +59,7 @@ export default function TabLayout() {
                 <MaterialCommunityIcons
                   name={focused ? "home-variant" : "home-variant-outline"}
                   color={color}
-                  size={30}
+                  size={26}
                 />
                 <Text
                   style={[
@@ -83,7 +83,7 @@ export default function TabLayout() {
                 <MaterialCommunityIcons
                   name="magnify"
                   color={color}
-                  size={30}
+                  size={26}
                 />
                 <Text
                   style={[
@@ -107,7 +107,7 @@ export default function TabLayout() {
                 <MaterialCommunityIcons
                   name="bookshelf"
                   color={color}
-                  size={30}
+                  size={26}
                 />
                 <Text
                   style={[
@@ -123,6 +123,31 @@ export default function TabLayout() {
           }}
         />
 
+        {/* 4th Tab: Offline Hub */}
+        <Tabs.Screen
+          name="offline-hub"
+          options={{
+            tabBarIcon: ({ color, focused }) => (
+              <View style={styles.tabItem}>
+                <MaterialCommunityIcons
+                  name={focused ? "lightning-bolt" : "lightning-bolt-outline"}
+                  color={focused ? "#1DB954" : color}
+                  size={26}
+                />
+                <Text
+                  style={[
+                    styles.tabLabel,
+                    { color: focused ? "#1DB954" : "#b3b3b3" },
+                  ]}
+                >
+                  Hub ⚡
+                </Text>
+              </View>
+            ),
+            tabBarAccessibilityLabel: "Offline Hub",
+          }}
+        />
+
         <Tabs.Screen
           name="downloads"
           options={{
@@ -131,7 +156,7 @@ export default function TabLayout() {
                 <MaterialCommunityIcons
                   name="download"
                   color={color}
-                  size={30}
+                  size={26}
                 />
                 <Text
                   style={[
@@ -186,9 +211,9 @@ const styles = StyleSheet.create({
   },
   tabLabel: {
     fontFamily: "SpotifyMedium",
-    fontSize: 12,
-    marginTop: 4,
-    minWidth: 80,
+    fontSize: 11,
+    marginTop: 3,
+    minWidth: 64,
     textAlign: "center",
   },
 });
