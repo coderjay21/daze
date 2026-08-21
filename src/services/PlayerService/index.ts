@@ -1,11 +1,13 @@
 import { AUDIO_QUALITY, STORAGE_KEYS } from "@/constants";
 import { appStorage } from "@/stores/storage";
+import { useOfflineHubStore } from "@/stores/offlineHubStore";
 import { RepeatMode } from "@/types";
 import { Extras, Models, Song } from "@saavn-labs/sdk";
 import type { TrackItem } from "react-native-nitro-player";
 import { PlayerQueue, TrackPlayer } from "react-native-nitro-player";
 import { historyService } from "../HistoryService";
 import { downloadService } from "../DownloadService";
+import { TasteEngineService } from "./TasteEngineService";
 
 export interface PlayerState {
   status: "playing" | "paused" | "loading";
@@ -27,6 +29,7 @@ export const setSevenSongsCallback = (callback: () => void) => {
 
 export interface IPlayerService {
   play(song: Models.Song, providedQueue?: Models.Song[]): Promise<void>;
+  playTrack(track: { id: string; title: string; artist: string; artwork: string; url: string }): Promise<void>;
   resume(): Promise<void>;
   pause(): Promise<void>;
   togglePlayPause(): Promise<void>;
@@ -78,6 +81,15 @@ export class PlayerService implements IPlayerService {
       if (state.currentIndex >= queue.length - 2) {
         await this.maybeExtendQueue(track.id);
       }
+
+      // 👇 TRIGGER TASTE ENGINE (Spotify-like Background Caching) 👇
+      TasteEngineService.onSongPlayed({
+        id: track.id,
+        title: track.title || "",
+        artist: track.artist || "Unknown",
+        artwork: track.artwork || "",
+        downloadUrl: track.url, 
+      });
 
       if (track.extraPayload) {
         try {
@@ -132,6 +144,30 @@ export class PlayerService implements IPlayerService {
       await TrackPlayer.play();
     } catch (error) {
       console.error("[Player] Play failed:", error);
+    }
+  }
+
+  // 👇 METHOD TO PLAY DIRECTLY FROM OFFLINE HUB 👇
+  async playTrack(track: { id: string; title: string; artist: string; artwork: string; url: string }): Promise<void> {
+    try {
+      const trackItem: TrackItem = {
+        id: track.id,
+        url: track.url,
+        title: track.title,
+        artist: track.artist,
+        album: "Offline Hub",
+        artwork: track.artwork || null,
+        duration: 0,
+        extraPayload: { id: track.id, title: track.title, artist: track.artist } as any,
+      };
+
+      const playlistId = await PlayerQueue.createPlaylist(track.title || "Offline Playing", "", track.artwork || undefined);
+      await PlayerQueue.addTracksToPlaylist(playlistId, [trackItem]);
+      await PlayerQueue.loadPlaylist(playlistId);
+      await TrackPlayer.playSong(track.id, playlistId);
+      await TrackPlayer.play();
+    } catch (error) {
+      console.error("[Player] playTrack failed:", error);
     }
   }
 
@@ -243,6 +279,7 @@ export class PlayerService implements IPlayerService {
       const album = typeof song.album === "string" ? song.album : song.album?.title || "";
       const artwork = song.images?.[2]?.url || song.images?.[1]?.url || "";
 
+      // 1. Check Standard Downloads
       const isDownloaded = await downloadService.isDownloaded(song.id);
       if (isDownloaded) {
         return {
@@ -257,6 +294,23 @@ export class PlayerService implements IPlayerService {
         };
       }
 
+      // 2. Check Offline Hub (Zero-Data Playback)
+      const hubTracks = useOfflineHubStore.getState().cachedTracks || [];
+      const cachedHubTrack = hubTracks.find((t) => t.id === song.id);
+      if (cachedHubTrack && cachedHubTrack.localUri) {
+        return {
+          id: song.id,
+          url: cachedHubTrack.localUri,
+          title: song.title || "Unknown",
+          artist,
+          album: "Offline Hub",
+          artwork: artwork || null,
+          duration: song.duration || 0,
+          extraPayload: JSON.parse(JSON.stringify(song)),
+        };
+      }
+
+      // 3. Fallback to Stream Online
       let url: string;
       const encrypted =
         song.media?.encryptedUrl || (await Song.getById({ songIds: song.id })).songs[0]?.media?.encryptedUrl;
