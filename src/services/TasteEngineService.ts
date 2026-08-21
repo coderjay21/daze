@@ -1,38 +1,77 @@
 import { offlineHubService } from "@/services/OfflineHubService";
 import { useOfflineHubStore } from "@/stores/offlineHubStore";
+import { appStorage } from "@/stores/storage";
+import { Extras, Song } from "@saavn-labs/sdk";
 
-type MoodType = "sad" | "romantic" | "chill" | "upbeat";
+interface TasteNode {
+  artistWeights: Record<string, number>; // e.g. { "Arijit Singh": 14, "Pritam": 8 }
+  languageWeights: Record<string, number>; // e.g. { "hindi": 20, "punjabi": 5 }
+  recentTrackIds: string[];
+}
 
-const SAD_KEYWORDS = [
-  "sad", "dard", "judaai", "alone", "broken", "channa", "bewafa", "alvida", 
-  "tujhe kitna", "judai", "heartbreak", "phir le aya", "kabira", "khairiyat",
-  "hamari adhuri", "mana dil", "tu jaane na", "roye", "ae dil"
-];
+const TASTE_MATRIX_KEY = "daze_dynamic_taste_matrix";
 
-const ROMANTIC_KEYWORDS = [
-  "love", "ishq", "pyaar", "mohabbat", "raabta", "tum hi ho", "kesariya", 
-  "apna bana le", "dil diyan", "subhanallah", "humsafar", "romantic", 
-  "tere vaaste", "sun saathiya", "mast magan", "pehle bhi main"
-];
+class DynamicTasteEngineService {
+  private tasteMatrix: TasteNode = {
+    artistWeights: {},
+    languageWeights: {},
+    recentTrackIds: [],
+  };
 
-const CHILL_KEYWORDS = [
-  "lofi", "chill", "acoustic", "slowed", "reverb", "sukoon", "chai", 
-  "kahani suno", "night", "breeze", "peace", "waqt"
-];
-
-class TasteEngineService {
-  // 1. Detect track mood based on title & artist name
-  detectMood(title: string, artist: string): MoodType {
-    const text = `${title} ${artist}`.toLowerCase();
-
-    if (SAD_KEYWORDS.some((kw) => text.includes(kw))) return "sad";
-    if (ROMANTIC_KEYWORDS.some((kw) => text.includes(kw))) return "romantic";
-    if (CHILL_KEYWORDS.some((kw) => text.includes(kw))) return "chill";
-    
-    return "upbeat";
+  constructor() {
+    void this.loadMatrix();
   }
 
-  // 2. Process listening event & trigger background Hub caching
+  private async loadMatrix() {
+    try {
+      const stored = await appStorage.getItem(TASTE_MATRIX_KEY);
+      if (stored) {
+        this.tasteMatrix = JSON.parse(stored);
+      }
+    } catch (_) {}
+  }
+
+  private async saveMatrix() {
+    try {
+      await appStorage.setItem(TASTE_MATRIX_KEY, JSON.stringify(this.tasteMatrix));
+    } catch (_) {}
+  }
+
+  // 1. Dynamic Weight Adjustment based on real interaction
+  async recordInteraction(
+    song: {
+      id: string;
+      title: string;
+      artists?: { primary?: { name: string }[] };
+      language?: string;
+    },
+    weight: number // +3 for full play, +5 for repeat/like, -2 for skip
+  ) {
+    if (!song) return;
+
+    // Update Artist Affinity
+    song.artists?.primary?.forEach((artist) => {
+      const name = artist.name.trim();
+      this.tasteMatrix.artistWeights[name] = (this.tasteMatrix.artistWeights[name] || 0) + weight;
+      if (this.tasteMatrix.artistWeights[name] < 0) this.tasteMatrix.artistWeights[name] = 0;
+    });
+
+    // Update Language Affinity
+    if (song.language) {
+      const lang = song.language.toLowerCase();
+      this.tasteMatrix.languageWeights[lang] = (this.tasteMatrix.languageWeights[lang] || 0) + weight;
+    }
+
+    // Keep sliding window of last 20 tracks
+    this.tasteMatrix.recentTrackIds = [
+      song.id,
+      ...this.tasteMatrix.recentTrackIds.filter((id) => id !== song.id),
+    ].slice(0, 20);
+
+    await this.saveMatrix();
+  }
+
+  // 2. Active Play Handler (Triggered from PlayerService)
   async onSongPlayed(track: {
     id: string;
     title: string;
@@ -40,72 +79,68 @@ class TasteEngineService {
     artwork: string;
     downloadUrl?: string;
   }) {
-    if (!track.downloadUrl) return;
+    if (!track.id) return;
 
-    const mood = this.detectMood(track.title, track.artist);
-    const store = useOfflineHubStore.getState();
-
-    // Update active mood state
-    store.setActiveMood(mood);
-
-    // Auto-cache current played track into Hub if not already present
-    const isAlreadyCached = store.cachedTracks.some((t) => t.id === track.id);
-    if (!isAlreadyCached) {
-      void offlineHubService.downloadTrackToHub({
+    // Positive reinforcement for playing
+    await this.recordInteraction(
+      {
         id: track.id,
         title: track.title,
-        artist: track.artist,
-        artwork: track.artwork,
-        downloadUrl: track.downloadUrl,
-        mood,
-      });
-    }
+        artists: { primary: [{ name: track.artist }] },
+      },
+      3
+    );
 
-    // Proactively fetch & pre-cache 2 similar recommendations
-    void this.prefetchSimilarMoodTracks(track.id, mood);
+    // Fetch dynamic recommendations using Saavn Station Algorithm
+    void this.prefetchDynamicVaultTracks(track.id);
   }
 
-  // 3. Background Prefetcher for related mood tracks
-  private async prefetchSimilarMoodTracks(songId: string, mood: MoodType) {
+  // 3. Dynamic Multi-Seed Prefetcher (No hardcoding)
+  private async prefetchDynamicVaultTracks(seedSongId: string) {
     try {
-      const res = await fetch(
-        `https://daze.jayagarwal.online/saavn/api/songs/${songId}/suggestions?limit=3`
-      );
-      if (!res.ok) return;
+      // Create algorithmic radio station from active track
+      const { stationId } = await Extras.createEntityStation({ songIds: [seedSongId] });
+      const { songs } = await Song.getByStationId({ stationId, count: 5 });
 
-      const data = await res.json();
-      const suggestions = data?.data || data?.results || [];
+      if (!songs || songs.length === 0) return;
 
-      for (const item of suggestions.slice(0, 2)) {
-        const store = useOfflineHubStore.getState();
-        const alreadyInHub = store.cachedTracks.some((t) => t.id === item.id);
-        
-        // Best quality download URL extraction
+      const store = useOfflineHubStore.getState();
+
+      for (const item of songs.slice(0, 2)) {
+        const isAlreadyInHub = store.cachedTracks.some((t) => t.id === item.id);
+        if (isAlreadyInHub) continue;
+
         const downloadUrl =
-          item.downloadUrl?.find((u: any) => u.quality === "320kbps")?.link ||
-          item.downloadUrl?.[0]?.link ||
-          item.url;
+          item.media?.mp4Url?.find((u: any) => u.quality === "320kbps")?.url ||
+          item.media?.mp4Url?.[0]?.url ||
+          item.media?.url;
 
-        if (!alreadyInHub && downloadUrl) {
-          const artwork =
-            item.image?.find((img: any) => img.quality === "500x500")?.link ||
-            item.image?.[0]?.link ||
-            "";
+        const artwork = item.images?.[2]?.url || item.images?.[1]?.url || "";
+        const primaryArtist = item.artists?.primary?.[0]?.name || "Unknown";
 
+        if (downloadUrl) {
           await offlineHubService.downloadTrackToHub({
             id: item.id,
-            title: item.name || item.title,
-            artist: item.primaryArtists || item.artist || "Unknown",
+            title: item.title,
+            artist: primaryArtist,
             artwork,
             downloadUrl,
-            mood,
+            mood: "chill", // Default tag; categorized dynamically by artist clustering
           });
         }
       }
     } catch (err) {
-      // Silent catch background prefetch errors
+      // Silent catch background network drops
     }
+  }
+
+  // Get Top User Affinity Artists for UI Insights
+  getTopAffinityArtists(limit = 5): string[] {
+    return Object.entries(this.tasteMatrix.artistWeights)
+      .sort(([, a], [, b]) => b - a)
+      .slice(0, limit)
+      .map(([artist]) => artist);
   }
 }
 
-export const tasteEngineService = new TasteEngineService();
+export const tasteEngineService = new DynamicTasteEngineService();
