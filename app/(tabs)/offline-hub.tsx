@@ -18,10 +18,10 @@ const QUOTA_OPTIONS = [250, 500, 1000];
 
 export default function OfflineHubScreen() {
   const {
-    hasConfigured,
-    maxQuotaMB,
-    cachedTracks,
-    activeMood,
+    hasConfigured = false,
+    maxQuotaMB = 500,
+    cachedTracks = [],
+    activeMood = "sad",
     setQuota,
     setHasConfigured,
     setActiveMood,
@@ -31,12 +31,13 @@ export default function OfflineHubScreen() {
 
   const [settingsModalOpen, setSettingsModalOpen] = useState(!hasConfigured);
 
-  const usedBytes = getTotalUsedBytes();
+  const usedBytes = typeof getTotalUsedBytes === "function" ? getTotalUsedBytes() : 0;
   const usedMB = (usedBytes / (1024 * 1024)).toFixed(1);
-  const usedPercent = Math.min(100, (Number(usedMB) / maxQuotaMB) * 100);
+  const usedPercent = Math.min(100, (Number(usedMB) / (maxQuotaMB || 500)) * 100);
 
-  const filteredTracks = cachedTracks.filter((t) =>
-    activeMood ? t.mood === activeMood : true
+  const safeTracks = Array.isArray(cachedTracks) ? cachedTracks : [];
+  const filteredTracks = safeTracks.filter((t) =>
+    activeMood ? t?.mood === activeMood : true
   );
 
   const handleSelectQuota = (mb: number) => {
@@ -46,6 +47,7 @@ export default function OfflineHubScreen() {
   };
 
   const playHubTrack = (track: any) => {
+    if (!track?.localUri) return;
     void playerService.playTrack({
       id: track.id,
       title: track.title,
@@ -62,7 +64,7 @@ export default function OfflineHubScreen() {
         <View>
           <Text style={styles.headerTitle}>Offline Hub ⚡</Text>
           <Text style={styles.headerSubtitle}>
-            Smart Auto-Vault • {cachedTracks.length} tracks cached
+            Smart Auto-Vault • {safeTracks.length} tracks cached
           </Text>
         </View>
         <TouchableOpacity
@@ -115,7 +117,7 @@ export default function OfflineHubScreen() {
       {/* Track List */}
       <FlatList
         data={filteredTracks}
-        keyExtractor={(item) => item.id}
+        keyExtractor={(item) => item?.id || Math.random().toString()}
         contentContainerStyle={styles.listContent}
         ListEmptyComponent={
           <View style={styles.emptyState}>
@@ -131,13 +133,16 @@ export default function OfflineHubScreen() {
             style={styles.trackRow}
             onPress={() => playHubTrack(item)}
           >
-            <Image source={{ uri: item.artwork }} style={styles.artwork} />
+            <Image
+              source={{ uri: item.artwork || "https://daze.jayagarwal.online/assets/logo.png" }}
+              style={styles.artwork}
+            />
             <View style={styles.trackInfo}>
               <Text style={styles.trackTitle} numberOfLines={1}>
                 {item.title}
               </Text>
               <Text style={styles.trackArtist} numberOfLines={1}>
-                {item.artist} • {(item.fileSizeBytes / (1024 * 1024)).toFixed(1)}MB
+                {item.artist} • {((item.fileSizeBytes || 0) / (1024 * 1024)).toFixed(1)}MB
               </Text>
             </View>
 
