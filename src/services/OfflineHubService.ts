@@ -1,4 +1,4 @@
-import * as FileSystem from "expo-file-system";
+import * as FileSystem from "expo-file-system/legacy";
 import { useOfflineHubStore, HubTrack } from "@/stores/offlineHubStore";
 
 const HUB_DIR = `${FileSystem.documentDirectory}offline_hub/`;
@@ -25,7 +25,6 @@ export class OfflineHubService {
   }): Promise<boolean> {
     try {
       if (!song?.downloadUrl?.startsWith("http") || !song?.id) {
-        console.warn("[HubService] Invalid download URL/ID rejected:", song?.title);
         return false;
       }
 
@@ -53,12 +52,11 @@ export class OfflineHubService {
         };
 
         store.addTrackToHub(newTrack);
-        console.log("[HubService] Successfully saved to Hub:", song.title);
         return true;
       }
       return false;
     } catch (error) {
-      console.error("[HubService] Download execution failed:", song.title, error);
+      console.error("[HubService] Download failed:", song.title, error);
       return false;
     }
   }
@@ -84,13 +82,9 @@ export class OfflineHubService {
           }
           store.removeTrackFromHub(track.id);
           currentBytes -= track.fileSizeBytes || 0;
-        } catch (e) {
-          console.warn("[HubService] Eviction delete error:", track.id, e);
-        }
+        } catch (_) {}
       }
-    } catch (err) {
-      console.error("[HubService] Eviction process error:", err);
-    }
+    } catch (_) {}
   }
 
   static async removeTrack(id: string) {
@@ -102,8 +96,6 @@ export class OfflineHubService {
         await FileSystem.deleteAsync(track.localUri, { idempotent: true });
       }
       store.removeTrackFromHub(id);
-    } catch (err) {
-      console.error("[HubService] Track removal error:", id, err);
-    }
+    } catch (_) {}
   }
 }
