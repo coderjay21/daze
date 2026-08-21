@@ -1,5 +1,7 @@
 import { AUDIO_QUALITY, STORAGE_KEYS } from "@/constants";
 import { appStorage } from "@/stores/storage";
+import { useOfflineHubStore } from "@/stores/offlineHubStore";
+import { tasteEngineService } from "@/services/TasteEngineService";
 import { RepeatMode } from "@/types";
 import { Extras, Models, Song } from "@saavn-labs/sdk";
 import type { TrackItem } from "react-native-nitro-player";
@@ -27,6 +29,7 @@ export const setSevenSongsCallback = (callback: () => void) => {
 
 export interface IPlayerService {
   play(song: Models.Song, providedQueue?: Models.Song[]): Promise<void>;
+  playTrack(track: { id: string; title: string; artist: string; artwork: string; url: string }): Promise<void>;
   resume(): Promise<void>;
   pause(): Promise<void>;
   togglePlayPause(): Promise<void>;
@@ -81,7 +84,17 @@ export class PlayerService implements IPlayerService {
 
       if (track.extraPayload) {
         try {
-          await historyService.addToHistory(track.extraPayload as unknown as Models.Song, 0);
+          const songPayload = track.extraPayload as unknown as Models.Song;
+          await historyService.addToHistory(songPayload, 0);
+
+          // Trigger Taste Analysis & Offline Hub caching
+          void tasteEngineService.onSongPlayed({
+            id: track.id,
+            title: track.title || "",
+            artist: track.artist || "",
+            artwork: track.artwork || "",
+            downloadUrl: track.url,
+          });
         } catch (error) {
           console.error("[PlayerService] addToHistory error:", error);
         }
@@ -130,8 +143,42 @@ export class PlayerService implements IPlayerService {
       await PlayerQueue.loadPlaylist(playlistId);
       await TrackPlayer.playSong(song.id, playlistId);
       await TrackPlayer.play();
+
+      // Trigger taste analysis on active play
+      const artist = song.artists?.primary?.map((a) => a.name).join(", ") || "Unknown";
+      const artwork = song.images?.[2]?.url || song.images?.[1]?.url || "";
+      void tasteEngineService.onSongPlayed({
+        id: song.id,
+        title: song.title || "",
+        artist,
+        artwork,
+        downloadUrl: validTracks[0]?.url,
+      });
     } catch (error) {
       console.error("[Player] Play failed:", error);
+    }
+  }
+
+  async playTrack(track: { id: string; title: string; artist: string; artwork: string; url: string }): Promise<void> {
+    try {
+      const trackItem: TrackItem = {
+        id: track.id,
+        url: track.url,
+        title: track.title,
+        artist: track.artist,
+        album: "Offline Hub",
+        artwork: track.artwork || null,
+        duration: 0,
+        extraPayload: { id: track.id, title: track.title, artist: track.artist } as any,
+      };
+
+      const playlistId = await PlayerQueue.createPlaylist(track.title || "Now Playing", "", track.artwork || undefined);
+      await PlayerQueue.addTracksToPlaylist(playlistId, [trackItem]);
+      await PlayerQueue.loadPlaylist(playlistId);
+      await TrackPlayer.playSong(track.id, playlistId);
+      await TrackPlayer.play();
+    } catch (error) {
+      console.error("[Player] playTrack failed:", error);
     }
   }
 
@@ -243,6 +290,7 @@ export class PlayerService implements IPlayerService {
       const album = typeof song.album === "string" ? song.album : song.album?.title || "";
       const artwork = song.images?.[2]?.url || song.images?.[1]?.url || "";
 
+      // 1. Check if downloaded in regular Downloads
       const isDownloaded = await downloadService.isDownloaded(song.id);
       if (isDownloaded) {
         return {
@@ -257,6 +305,23 @@ export class PlayerService implements IPlayerService {
         };
       }
 
+      // 2. Check if available in Offline Hub local vault
+      const hubTracks = useOfflineHubStore.getState().cachedTracks;
+      const cachedHubTrack = hubTracks.find((t) => t.id === song.id);
+      if (cachedHubTrack && cachedHubTrack.localUri) {
+        return {
+          id: song.id,
+          url: cachedHubTrack.localUri,
+          title: song.title || "Unknown",
+          artist,
+          album,
+          artwork: artwork || null,
+          duration: song.duration || 0,
+          extraPayload: JSON.parse(JSON.stringify(song)),
+        };
+      }
+
+      // 3. Fallback to online stream
       let url: string;
       const encrypted =
         song.media?.encryptedUrl || (await Song.getById({ songIds: song.id })).songs[0]?.media?.encryptedUrl;
