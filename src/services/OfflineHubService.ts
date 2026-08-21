@@ -4,55 +4,48 @@ import { useOfflineHubStore, HubTrack } from "@/stores/offlineHubStore";
 
 const HUB_DIR = `${FileSystem.documentDirectory}offline_hub/`;
 
-// Configure notification behavior
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: false,
-    shouldSetBadge: false,
-  }),
-});
-
 class OfflineHubService {
   async initDirectory() {
-    const dirInfo = await FileSystem.getInfoAsync(HUB_DIR);
-    if (!dirInfo.exists) {
-      await FileSystem.makeDirectoryAsync(HUB_DIR, { intermediates: true });
-    }
+    try {
+      const dirInfo = await FileSystem.getInfoAsync(HUB_DIR);
+      if (!dirInfo.exists) {
+        await FileSystem.makeDirectoryAsync(HUB_DIR, { intermediates: true });
+      }
+    } catch (_) {}
   }
 
-  // 1. Send Local Notification to user
+  // Safe Notification Dispatcher
   async notifyHubRefreshed(addedCount: number, removedCount: number) {
     try {
       const permission = await Notifications.getPermissionsAsync();
       if (!permission.granted) {
-        await Notifications.requestPermissionsAsync();
+        const req = await Notifications.requestPermissionsAsync();
+        if (!req.granted) return;
       }
 
       await Notifications.scheduleNotificationAsync({
         content: {
           title: "⚡ Daze Offline Hub Refreshed",
-          body: `Added ${addedCount} fresh tracks matching your taste. Removed ${removedCount} older songs to maintain your quota.`,
-          data: { screen: "offline-hub" },
+          body: `Added ${addedCount} fresh tracks matching your taste. Removed ${removedCount} older songs to maintain quota.`,
         },
-        trigger: null, // Send immediately
+        trigger: null,
       });
     } catch (e) {
-      // Silent catch if permissions denied
+      // Silent catch - Prevents app crash
     }
   }
 
-  // 2. Download a single track to Hub
+  // Download a single track to Hub
   async downloadTrackToHub(
     song: { id: string; title: string; artist: string; artwork: string; downloadUrl: string; mood: any }
   ): Promise<boolean> {
-    await this.initDirectory();
-    const store = useOfflineHubStore.getState();
-    const targetFile = `${HUB_DIR}${song.id}.m4a`;
-
     try {
+      await this.initDirectory();
+      const store = useOfflineHubStore.getState();
+      const targetFile = `${HUB_DIR}${song.id}.m4a`;
+
       // Evict space if needed before downloading
-      await this.ensureSpaceForNewTrack(10 * 1024 * 1024); // Estimate ~10MB
+      await this.ensureSpaceForNewTrack(10 * 1024 * 1024);
 
       const downloadRes = await FileSystem.downloadAsync(song.downloadUrl, targetFile);
       const fileInfo = await FileSystem.getInfoAsync(downloadRes.uri);
@@ -73,54 +66,54 @@ class OfflineHubService {
       store.addTrackToHub(newTrack);
       return true;
     } catch (error) {
-      console.error("[OfflineHub] Download error:", error);
       return false;
     }
   }
 
-  // 3. FIFO / LRU Auto-Eviction Loop (500MB Limit Maintainer)
+  // FIFO / LRU Auto-Eviction Loop
   async ensureSpaceForNewTrack(requiredBytes: number) {
-    const store = useOfflineHubStore.getState();
-    const maxBytes = store.maxQuotaMB * 1024 * 1024;
-    let currentBytes = store.getTotalUsedBytes();
+    try {
+      const store = useOfflineHubStore.getState();
+      const maxBytes = store.maxQuotaMB * 1024 * 1024;
+      let currentBytes = store.getTotalUsedBytes();
 
-    if (currentBytes + requiredBytes <= maxBytes) return;
+      if (currentBytes + requiredBytes <= maxBytes) return;
 
-    // Sort unpinned tracks: lowest playCount first, then oldest addedAt
-    const evictable = [...store.cachedTracks]
-      .filter((t) => !t.isPinned)
-      .sort((a, b) => a.playCount - b.playCount || a.addedAt - b.addedAt);
+      const evictable = [...store.cachedTracks]
+        .filter((t) => !t.isPinned)
+        .sort((a, b) => a.playCount - b.playCount || a.addedAt - b.addedAt);
 
-    let removedCount = 0;
+      let removedCount = 0;
 
-    for (const track of evictable) {
-      if (currentBytes + requiredBytes <= maxBytes) break;
+      for (const track of evictable) {
+        if (currentBytes + requiredBytes <= maxBytes) break;
 
-      try {
-        await FileSystem.deleteAsync(track.localUri, { idempotent: true });
-        store.removeTrackFromHub(track.id);
-        currentBytes -= track.fileSizeBytes;
-        removedCount++;
-      } catch (err) {
-        // Ignore file delete errors
+        try {
+          await FileSystem.deleteAsync(track.localUri, { idempotent: true });
+          store.removeTrackFromHub(track.id);
+          currentBytes -= track.fileSizeBytes;
+          removedCount++;
+        } catch (_) {}
       }
-    }
 
-    if (removedCount > 0) {
-      void this.notifyHubRefreshed(1, removedCount);
-    }
+      if (removedCount > 0) {
+        void this.notifyHubRefreshed(1, removedCount);
+      }
+    } catch (_) {}
   }
 
-  // 4. Manually Delete Track
+  // Manually Delete Track
   async removeTrack(id: string) {
-    const store = useOfflineHubStore.getState();
-    const track = store.cachedTracks.find((t) => t.id === id);
-    if (track) {
-      try {
-        await FileSystem.deleteAsync(track.localUri, { idempotent: true });
-      } catch (_) {}
-      store.removeTrackFromHub(id);
-    }
+    try {
+      const store = useOfflineHubStore.getState();
+      const track = store.cachedTracks.find((t) => t.id === id);
+      if (track) {
+        try {
+          await FileSystem.deleteAsync(track.localUri, { idempotent: true });
+        } catch (_) {}
+        store.removeTrackFromHub(id);
+      }
+    } catch (_) {}
   }
 }
 
