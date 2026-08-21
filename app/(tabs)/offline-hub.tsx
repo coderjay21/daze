@@ -11,32 +11,28 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useOfflineHubStore } from "@/stores/offlineHubStore";
-import { offlineHubService } from "@/services/OfflineHubService";
+import { OfflineHubService } from "@/services/OfflineHubService";
 import { playerService } from "@/services/PlayerService";
 
 const QUOTA_OPTIONS = [250, 500, 1000];
 
 export default function OfflineHubScreen() {
-  const {
-    hasConfigured = false,
-    maxQuotaMB = 500,
-    cachedTracks = [],
-    activeMood = "sad",
-    setQuota,
-    setHasConfigured,
-    setActiveMood,
-    togglePinTrack,
-    getTotalUsedBytes,
-  } = useOfflineHubStore();
+  const hasConfigured = useOfflineHubStore((s) => s.hasConfigured);
+  const maxQuotaMB = useOfflineHubStore((s) => s.maxQuotaMB) || 500;
+  const cachedTracks = useOfflineHubStore((s) => s.cachedTracks) || [];
+  const activeMood = useOfflineHubStore((s) => s.activeMood) || "sad";
+  const setQuota = useOfflineHubStore((s) => s.setQuota);
+  const setHasConfigured = useOfflineHubStore((s) => s.setHasConfigured);
+  const setActiveMood = useOfflineHubStore((s) => s.setActiveMood);
+  const togglePinTrack = useOfflineHubStore((s) => s.togglePinTrack);
 
   const [settingsModalOpen, setSettingsModalOpen] = useState(!hasConfigured);
 
-  const usedBytes = typeof getTotalUsedBytes === "function" ? getTotalUsedBytes() : 0;
+  const usedBytes = OfflineHubService.getTotalUsedBytes();
   const usedMB = (usedBytes / (1024 * 1024)).toFixed(1);
-  const usedPercent = Math.min(100, (Number(usedMB) / (maxQuotaMB || 500)) * 100);
+  const usedPercent = Math.min(100, (Number(usedMB) / maxQuotaMB) * 100);
 
-  const safeTracks = Array.isArray(cachedTracks) ? cachedTracks : [];
-  const filteredTracks = safeTracks.filter((t) =>
+  const filteredTracks = cachedTracks.filter((t) =>
     activeMood ? t?.mood === activeMood : true
   );
 
@@ -59,12 +55,11 @@ export default function OfflineHubScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
-      {/* Header */}
       <View style={styles.header}>
         <View>
           <Text style={styles.headerTitle}>Offline Hub ⚡</Text>
           <Text style={styles.headerSubtitle}>
-            Smart Auto-Vault • {safeTracks.length} tracks cached
+            Smart Auto-Vault • {cachedTracks.length} tracks cached
           </Text>
         </View>
         <TouchableOpacity
@@ -75,7 +70,6 @@ export default function OfflineHubScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* Storage Progress Meter */}
       <View style={styles.storageCard}>
         <View style={styles.storageRow}>
           <Text style={styles.storageLabel}>Vault Allocation</Text>
@@ -88,7 +82,6 @@ export default function OfflineHubScreen() {
         </View>
       </View>
 
-      {/* Mood Filters */}
       <View style={styles.moodContainer}>
         {(["sad", "romantic", "chill", "upbeat"] as const).map((m) => (
           <TouchableOpacity
@@ -114,7 +107,6 @@ export default function OfflineHubScreen() {
         ))}
       </View>
 
-      {/* Track List */}
       <FlatList
         data={filteredTracks}
         keyExtractor={(item) => item?.id || Math.random().toString()}
@@ -133,10 +125,7 @@ export default function OfflineHubScreen() {
             style={styles.trackRow}
             onPress={() => playHubTrack(item)}
           >
-            <Image
-              source={{ uri: item.artwork || "https://daze.jayagarwal.online/assets/logo.png" }}
-              style={styles.artwork}
-            />
+            <Image source={{ uri: item.artwork }} style={styles.artwork} />
             <View style={styles.trackInfo}>
               <Text style={styles.trackTitle} numberOfLines={1}>
                 {item.title}
@@ -146,7 +135,6 @@ export default function OfflineHubScreen() {
               </Text>
             </View>
 
-            {/* Pin Action */}
             <TouchableOpacity
               onPress={() => togglePinTrack(item.id)}
               style={styles.actionBtn}
@@ -158,9 +146,8 @@ export default function OfflineHubScreen() {
               />
             </TouchableOpacity>
 
-            {/* Remove Action */}
             <TouchableOpacity
-              onPress={() => void offlineHubService.removeTrack(item.id)}
+              onPress={() => void OfflineHubService.removeTrack(item.id)}
               style={styles.actionBtn}
             >
               <MaterialCommunityIcons name="close" size={20} color="#888" />
@@ -169,7 +156,6 @@ export default function OfflineHubScreen() {
         )}
       />
 
-      {/* Quota Settings Modal */}
       <Modal visible={settingsModalOpen} transparent animationType="fade">
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
