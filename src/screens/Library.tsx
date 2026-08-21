@@ -1,5 +1,6 @@
 import { GenericMediaItem, TrackItem } from "@/components";
 import SupportDazeModal from "@/components/common/SupportDazeModal";
+import TopSupportersCard from "@/components/common/TopSupportersCard";
 import type { Collection } from "@/services";
 import { useCurrentSong, useLibraryStore, usePlayerActions } from "@/stores";
 import { getScreenPaddingBottom, theme } from "@/utils";
@@ -9,23 +10,23 @@ import { MaterialIcons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import React, {
-    useCallback,
-    useEffect,
-    useMemo,
-    useRef,
-    useState,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
 } from "react";
 import {
-    Alert,
-    Animated,
-    FlatList,
-    Modal,
-    Platform,
-    RefreshControl,
-    StyleSheet,
-    TextInput,
-    TouchableOpacity,
-    View,
+  Alert,
+  Animated,
+  FlatList,
+  Modal,
+  Platform,
+  RefreshControl,
+  StyleSheet,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { IconButton, Menu, Text } from "react-native-paper";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -173,10 +174,6 @@ const LibraryScreen: React.FC<LibraryScreenProps> = () => {
 
       if (!created) {
         Alert.alert("Error", "Failed to create collection");
-        console.error(
-          "[LibraryScreen.handleCreateCollection]",
-          "create failed",
-        );
         return;
       }
 
@@ -188,7 +185,6 @@ const LibraryScreen: React.FC<LibraryScreenProps> = () => {
         "Error",
         error instanceof Error ? error.message : "Failed to create collection",
       );
-      console.error("[LibraryScreen.handleCreateCollection]", error);
     }
   }, [collectionName, createCollection, loadLibraryData]);
 
@@ -203,10 +199,6 @@ const LibraryScreen: React.FC<LibraryScreenProps> = () => {
 
       if (!success) {
         Alert.alert("Error", "Failed to rename collection");
-        console.error(
-          "[LibraryScreen.handleRenameCollection]",
-          "rename failed",
-        );
         return;
       }
 
@@ -225,7 +217,6 @@ const LibraryScreen: React.FC<LibraryScreenProps> = () => {
         "Error",
         error instanceof Error ? error.message : "Failed to rename collection",
       );
-      console.error("[LibraryScreen.handleRenameCollection]", error);
     }
   }, [
     editingCollection,
@@ -291,7 +282,7 @@ const LibraryScreen: React.FC<LibraryScreenProps> = () => {
         <View style={styles.emptyIconContainer}>
           <MaterialIcons
             name={icon as any}
-            size={80}
+            size={70}
             color={theme.colors.onSurfaceVariant}
             style={styles.emptyIcon}
           />
@@ -321,7 +312,7 @@ const LibraryScreen: React.FC<LibraryScreenProps> = () => {
         )}
       </View>
     ),
-    [theme.colors.onSurfaceVariant, theme.colors.primary],
+    [],
   );
 
   const renderCollectionDetail = useMemo(() => {
@@ -463,7 +454,7 @@ const LibraryScreen: React.FC<LibraryScreenProps> = () => {
               <FlatList
                 data={selectedCollection.songs}
                 keyExtractor={(item) => item.id}
-                renderItem={({ item, index }) => (
+                renderItem={({ item }) => (
                   <TrackItem
                     track={item}
                     onPress={() =>
@@ -483,7 +474,6 @@ const LibraryScreen: React.FC<LibraryScreenProps> = () => {
   }, [
     selectedCollection,
     collections,
-    theme.colors,
     currentSong,
     getGradientForCollection,
     renderEmptyState,
@@ -518,7 +508,7 @@ const LibraryScreen: React.FC<LibraryScreenProps> = () => {
           >
             <MaterialIcons
               name={collectionIcon as any}
-              size={40}
+              size={36}
               color="#ffffff"
             />
           </LinearGradient>
@@ -565,110 +555,131 @@ const LibraryScreen: React.FC<LibraryScreenProps> = () => {
     },
     [
       menuVisible,
-      theme.colors,
       getGradientForCollection,
       openRenameModal,
       handleDeleteCollection,
+      setSelectedCollection,
     ],
   );
 
   const renderCollectionsList = useMemo(() => {
-    if (collections.length === 0) {
-      return renderEmptyState(
-        "library-music",
-        "No collections yet",
-        "Create a collection to organize your music",
-        "Create Collection",
-        openCreateModal,
-      );
-    }
-
     return (
       <View style={styles.collectionsListContainer}>
-        <FlatList
-          data={collections}
-          renderItem={renderCollectionCard}
-          keyExtractor={(item) => item.id}
-          scrollEnabled={false}
-          contentContainerStyle={styles.collectionsList}
+        {/* TOP SUPPORTERS GOAL COMPONENT */}
+        <TopSupportersCard
+          onOpenDonateModal={() => setSupportModalVisible(true)}
         />
-      </View>
-    );
-  }, [collections, renderEmptyState, renderCollectionCard, openCreateModal]);
 
-  const renderSavedMedia = useMemo(() => {
-    if (savedAlbums.length === 0 && savedPlaylists.length === 0) {
-      return renderEmptyState(
-        "bookmark-border",
-        "No saved albums or playlists",
-        "Save albums and playlists to access them quickly",
-      );
-    }
-
-    return (
-      <View style={styles.savedMediaContainer}>
-        {savedAlbums.length > 0 && (
-          <View style={styles.savedSection}>
-            <Text variant="titleLarge" style={styles.savedSectionTitle}>
-              Albums
+        {collections.length === 0 ? (
+          renderEmptyState(
+            "library-music",
+            "No collections yet",
+            "Create a collection to organize your music",
+            "Create Collection",
+            openCreateModal,
+          )
+        ) : (
+          <View style={styles.sectionWrap}>
+            <Text variant="titleMedium" style={styles.sectionHeaderTitle}>
+              Your Playlists & Collections
             </Text>
-            {savedAlbums.map((album) => (
-              <View key={album.id} style={styles.savedRow}>
-                <View style={styles.savedMediaItemWrap}>
-                  <GenericMediaItem
-                    data={album}
-                    type="album"
-                    onPress={() => handleOpenAlbum(album.id)}
-                  />
-                </View>
-                <IconButton
-                  icon="bookmark-remove-outline"
-                  size={22}
-                  iconColor={theme.colors.onSurfaceVariant}
-                  onPress={() => handleRemoveSavedAlbum(album.id)}
-                  style={styles.savedRemoveButton}
-                />
-              </View>
-            ))}
-          </View>
-        )}
-
-        {savedPlaylists.length > 0 && (
-          <View style={styles.savedSection}>
-            <Text variant="titleLarge" style={styles.savedSectionTitle}>
-              Playlists
-            </Text>
-            {savedPlaylists.map((playlist) => (
-              <View key={playlist.id} style={styles.savedRow}>
-                <View style={styles.savedMediaItemWrap}>
-                  <GenericMediaItem
-                    data={playlist}
-                    type="playlist"
-                    onPress={() => handleOpenPlaylist(playlist.id)}
-                  />
-                </View>
-                <IconButton
-                  icon="bookmark-remove-outline"
-                  size={22}
-                  iconColor={theme.colors.onSurfaceVariant}
-                  onPress={() => handleRemoveSavedPlaylist(playlist.id)}
-                  style={styles.savedRemoveButton}
-                />
-              </View>
-            ))}
+            <FlatList
+              data={collections}
+              renderItem={renderCollectionCard}
+              keyExtractor={(item) => item.id}
+              scrollEnabled={false}
+              contentContainerStyle={styles.collectionsList}
+            />
           </View>
         )}
       </View>
     );
   }, [
+    collections,
+    renderEmptyState,
+    renderCollectionCard,
+    openCreateModal,
+  ]);
+
+  const renderSavedMedia = useMemo(() => {
+    return (
+      <View style={styles.savedMediaContainer}>
+        {/* TOP SUPPORTERS GOAL COMPONENT */}
+        <TopSupportersCard
+          onOpenDonateModal={() => setSupportModalVisible(true)}
+        />
+
+        {savedAlbums.length === 0 && savedPlaylists.length === 0 ? (
+          renderEmptyState(
+            "bookmark-border",
+            "No saved albums or playlists",
+            "Save albums and playlists to access them quickly",
+          )
+        ) : (
+          <>
+            {savedAlbums.length > 0 && (
+              <View style={styles.savedSection}>
+                <Text variant="titleMedium" style={styles.savedSectionTitle}>
+                  Saved Albums
+                </Text>
+                {savedAlbums.map((album) => (
+                  <View key={album.id} style={styles.savedRow}>
+                    <View style={styles.savedMediaItemWrap}>
+                      <GenericMediaItem
+                        data={album}
+                        type="album"
+                        onPress={() => handleOpenAlbum(album.id)}
+                      />
+                    </View>
+                    <IconButton
+                      icon="bookmark-remove-outline"
+                      size={22}
+                      iconColor={theme.colors.onSurfaceVariant}
+                      onPress={() => handleRemoveSavedAlbum(album.id)}
+                      style={styles.savedRemoveButton}
+                    />
+                  </View>
+                ))}
+              </View>
+            )}
+
+            {savedPlaylists.length > 0 && (
+              <View style={styles.savedSection}>
+                <Text variant="titleMedium" style={styles.savedSectionTitle}>
+                  Saved Playlists
+                </Text>
+                {savedPlaylists.map((playlist) => (
+                  <View key={playlist.id} style={styles.savedRow}>
+                    <View style={styles.savedMediaItemWrap}>
+                      <GenericMediaItem
+                        data={playlist}
+                        type="playlist"
+                        onPress={() => handleOpenPlaylist(playlist.id)}
+                      />
+                    </View>
+                    <IconButton
+                      icon="bookmark-remove-outline"
+                      size={22}
+                      iconColor={theme.colors.onSurfaceVariant}
+                      onPress={() => handleRemoveSavedPlaylist(playlist.id)}
+                      style={styles.savedRemoveButton}
+                    />
+                  </View>
+                ))}
+              </View>
+            )}
+          </>
+        )}
+      </View>
+    );
+  }, [
+    savedAlbums,
+    savedPlaylists,
     handleOpenAlbum,
     handleOpenPlaylist,
     handleRemoveSavedAlbum,
     handleRemoveSavedPlaylist,
     renderEmptyState,
-    savedAlbums,
-    savedPlaylists,
-    theme.colors.onSurfaceVariant,
   ]);
 
   const handleModalSubmit = useCallback(() => {
@@ -801,7 +812,7 @@ const LibraryScreen: React.FC<LibraryScreenProps> = () => {
             styles.fab,
             {
               backgroundColor: theme.colors.primary,
-              bottom: bottomPadding + 8,
+              bottom: bottomPadding + 12,
             },
           ]}
           activeOpacity={0.8}
@@ -899,7 +910,7 @@ const styles = StyleSheet.create({
   header: {
     paddingHorizontal: 20,
     paddingTop: 16,
-    paddingBottom: 12,
+    paddingBottom: 8,
   },
   headerRow: {
     flexDirection: "row",
@@ -1020,18 +1031,30 @@ const styles = StyleSheet.create({
     paddingTop: 8,
   },
   collectionsListContainer: {
-    paddingTop: 16,
+    paddingTop: 4,
+  },
+  sectionWrap: {
+    paddingTop: 8,
+  },
+  sectionHeaderTitle: {
+    color: "#ffffff",
+    fontWeight: "700",
+    paddingHorizontal: 20,
+    marginBottom: 10,
+    fontSize: 15,
   },
   savedMediaContainer: {
-    paddingTop: 16,
-    paddingHorizontal: 20,
-    gap: 16,
+    paddingTop: 4,
+    gap: 12,
   },
   savedSection: {
+    paddingHorizontal: 20,
     gap: 8,
   },
   savedSectionTitle: {
     fontWeight: "700",
+    marginBottom: 4,
+    fontSize: 15,
   },
   savedRow: {
     flexDirection: "row",
@@ -1062,25 +1085,25 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255, 255, 255, 0.05)",
   },
   collectionCover: {
-    width: 80,
-    height: 80,
+    width: 72,
+    height: 72,
     borderRadius: 8,
     justifyContent: "center",
     alignItems: "center",
-    marginRight: 16,
+    marginRight: 14,
   },
   collectionCardInfo: {
     flex: 1,
     justifyContent: "center",
   },
   collectionCardName: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: "700",
     marginBottom: 4,
     color: "#ffffff",
   },
   collectionCardMeta: {
-    fontSize: 13,
+    fontSize: 12,
     color: "#b3b3b3",
     fontWeight: "500",
   },
@@ -1088,14 +1111,14 @@ const styles = StyleSheet.create({
     margin: 0,
   },
   emptyContainer: {
-    flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    paddingTop: 100,
+    paddingTop: 40,
+    paddingBottom: 40,
     paddingHorizontal: 32,
   },
   emptyIconContainer: {
-    marginBottom: 24,
+    marginBottom: 16,
     opacity: 0.3,
   },
   emptyIcon: {
@@ -1103,18 +1126,20 @@ const styles = StyleSheet.create({
   },
   emptyTitle: {
     fontWeight: "700",
-    marginBottom: 8,
+    marginBottom: 6,
     textAlign: "center",
+    fontSize: 18,
   },
   emptyText: {
     textAlign: "center",
-    marginBottom: 24,
+    marginBottom: 20,
+    fontSize: 13,
   },
   emptyButton: {
-    paddingHorizontal: 32,
-    paddingVertical: 12,
+    paddingHorizontal: 28,
+    paddingVertical: 10,
     borderRadius: 24,
-    marginTop: 8,
+    marginTop: 4,
   },
   emptyButtonText: {
     color: "#000000",
