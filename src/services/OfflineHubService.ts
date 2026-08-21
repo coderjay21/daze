@@ -1,5 +1,4 @@
 import * as FileSystem from "expo-file-system";
-import * as Notifications from "expo-notifications";
 import { useOfflineHubStore, HubTrack } from "@/stores/offlineHubStore";
 
 const HUB_DIR = `${FileSystem.documentDirectory}offline_hub/`;
@@ -12,27 +11,6 @@ class OfflineHubService {
         await FileSystem.makeDirectoryAsync(HUB_DIR, { intermediates: true });
       }
     } catch (_) {}
-  }
-
-  // Safe Notification Dispatcher
-  async notifyHubRefreshed(addedCount: number, removedCount: number) {
-    try {
-      const permission = await Notifications.getPermissionsAsync();
-      if (!permission.granted) {
-        const req = await Notifications.requestPermissionsAsync();
-        if (!req.granted) return;
-      }
-
-      await Notifications.scheduleNotificationAsync({
-        content: {
-          title: "⚡ Daze Offline Hub Refreshed",
-          body: `Added ${addedCount} fresh tracks matching your taste. Removed ${removedCount} older songs to maintain quota.`,
-        },
-        trigger: null,
-      });
-    } catch (e) {
-      // Silent catch - Prevents app crash
-    }
   }
 
   // Download a single track to Hub
@@ -70,7 +48,7 @@ class OfflineHubService {
     }
   }
 
-  // FIFO / LRU Auto-Eviction Loop
+  // FIFO / LRU Auto-Eviction Loop (Maintains user-configured Quota)
   async ensureSpaceForNewTrack(requiredBytes: number) {
     try {
       const store = useOfflineHubStore.getState();
@@ -83,8 +61,6 @@ class OfflineHubService {
         .filter((t) => !t.isPinned)
         .sort((a, b) => a.playCount - b.playCount || a.addedAt - b.addedAt);
 
-      let removedCount = 0;
-
       for (const track of evictable) {
         if (currentBytes + requiredBytes <= maxBytes) break;
 
@@ -92,12 +68,7 @@ class OfflineHubService {
           await FileSystem.deleteAsync(track.localUri, { idempotent: true });
           store.removeTrackFromHub(track.id);
           currentBytes -= track.fileSizeBytes;
-          removedCount++;
         } catch (_) {}
-      }
-
-      if (removedCount > 0) {
-        void this.notifyHubRefreshed(1, removedCount);
       }
     } catch (_) {}
   }
