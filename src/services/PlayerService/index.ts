@@ -7,7 +7,7 @@ import type { TrackItem } from "react-native-nitro-player";
 import { PlayerQueue, TrackPlayer } from "react-native-nitro-player";
 import { historyService } from "../HistoryService";
 import { downloadService } from "../DownloadService";
-import { TasteEngineService } from "./TasteEngineService";
+import { TasteEngineService } from "../TasteEngineService";
 
 export interface PlayerState {
   status: "playing" | "paused" | "loading";
