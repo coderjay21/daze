@@ -2,6 +2,7 @@ import AppUpdateDialog from "@/components/common/AppUpdateDialog";
 import GlobalSnackbar from "@/components/common/GlobalSnackbar";
 import SupportDazeModal from "@/components/common/SupportDazeModal";
 import { playerService, setSevenSongsCallback } from "@/services/PlayerService";
+import { syncDeviceTelemetry } from "@/services/TelemetryService";
 import { updateService } from "@/services/UpdateService";
 import { usePlayerStore } from "@/stores/playerStore";
 import { iconFonts } from "@/utils/loadFonts";
@@ -153,6 +154,9 @@ export default function Layout() {
 
   useEffect(() => {
     void playerService.initialize();
+
+    // Trigger telemetry tracking to Google Sheets
+    void syncDeviceTelemetry();
 
     // Check for updates on startup
     const timer = setTimeout(() => {
