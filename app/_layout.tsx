@@ -78,18 +78,44 @@ export default function Layout() {
   const { restoreLastTrack } = usePlayerStore();
 
   useEffect(() => {
-    // Check initial network state
-    void Network.getNetworkStateAsync().then((state) => {
-      setIsOnline(Boolean(state.isConnected && state.isInternetReachable !== false));
+    let isMounted = true;
+
+    const checkConnectivity = async () => {
+      try {
+        const state = await Network.getNetworkStateAsync();
+        const connected = Boolean(
+          state.isConnected && state.isInternetReachable !== false
+        );
+        if (isMounted) {
+          setIsOnline(connected);
+        }
+      } catch (e) {
+        if (isMounted) setIsOnline(false);
+      }
+    };
+
+    // 1. Initial network check
+    void checkConnectivity();
+
+    // 2. Native network state listener
+    const subscription = Network.addNetworkStateListener((state) => {
+      const connected = Boolean(
+        state.isConnected && state.isInternetReachable !== false
+      );
+      if (isMounted) {
+        setIsOnline(connected);
+      }
     });
 
-    // Real-time network listener
-    const subscription = Network.addNetworkStateListener((state) => {
-      setIsOnline(Boolean(state.isConnected && state.isInternetReachable !== false));
-    });
+    // 3. Real-time 3-second heartbeat poll (instant response during playback)
+    const interval = setInterval(() => {
+      void checkConnectivity();
+    }, 3000);
 
     return () => {
+      isMounted = false;
       subscription.remove();
+      clearInterval(interval);
     };
   }, []);
 
