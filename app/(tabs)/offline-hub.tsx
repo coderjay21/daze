@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useCallback } from "react";
 import {
   View,
   Text,
@@ -7,6 +7,7 @@ import {
   Image,
   TouchableOpacity,
   Modal,
+  RefreshControl,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
@@ -28,6 +29,9 @@ export default function OfflineHubScreen() {
   const getTotalUsedBytes = useOfflineHubStore((s) => s.getTotalUsedBytes);
 
   const [settingsModalOpen, setSettingsModalOpen] = useState(!hasConfigured);
+  
+  // Pull-to-Refresh State
+  const [refreshing, setRefreshing] = useState(false);
 
   const usedBytes = typeof getTotalUsedBytes === "function" ? getTotalUsedBytes() : 0;
   const usedMB = (usedBytes / (1024 * 1024)).toFixed(1);
@@ -36,6 +40,15 @@ export default function OfflineHubScreen() {
   const filteredTracks = cachedTracks.filter((t) =>
     activeMood ? t?.mood === activeMood : true
   );
+
+  // Manual Refresh Handler
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    // Zustand apne aap list update rakhta hai, but ye manual trigger feel dega
+    setTimeout(() => {
+      setRefreshing(false);
+    }, 1200);
+  }, []);
 
   const handleSelectQuota = (mb: number) => {
     setQuota(mb);
@@ -56,7 +69,6 @@ export default function OfflineHubScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
-      {/* Header */}
       <View style={styles.header}>
         <View>
           <Text style={styles.headerTitle}>Offline Hub ⚡</Text>
@@ -72,7 +84,6 @@ export default function OfflineHubScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* Storage Progress Meter */}
       <View style={styles.storageCard}>
         <View style={styles.storageRow}>
           <Text style={styles.storageLabel}>Vault Allocation</Text>
@@ -85,7 +96,6 @@ export default function OfflineHubScreen() {
         </View>
       </View>
 
-      {/* Mood Filters */}
       <View style={styles.moodContainer}>
         {(["sad", "romantic", "chill", "upbeat"] as const).map((m) => (
           <TouchableOpacity
@@ -100,7 +110,7 @@ export default function OfflineHubScreen() {
               ]}
             >
               {m === "sad"
-                ? "💔 Melancholy"
+                ? "💔 Sad"
                 : m === "romantic"
                 ? "❤️ Romantic"
                 : m === "chill"
@@ -111,17 +121,27 @@ export default function OfflineHubScreen() {
         ))}
       </View>
 
-      {/* Track List */}
       <FlatList
         data={filteredTracks}
         keyExtractor={(item) => item?.id || Math.random().toString()}
         contentContainerStyle={styles.listContent}
+        
+        // PULL TO REFRESH LOGIC
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor="#1DB954"
+            colors={["#1DB954"]}
+          />
+        }
+        
         ListEmptyComponent={
           <View style={styles.emptyState}>
             <MaterialCommunityIcons name="cloud-sync" size={48} color="#404040" />
             <Text style={styles.emptyTitle}>Vault is filling up</Text>
             <Text style={styles.emptyDesc}>
-              Listen to songs online. Daze will auto-cache your favorite {activeMood} tracks up to {maxQuotaMB}MB!
+              Listen to songs online. Daze will auto-cache your favorite {activeMood} tracks up to {maxQuotaMB}MB! (Swipe down to refresh)
             </Text>
           </View>
         }
@@ -143,7 +163,6 @@ export default function OfflineHubScreen() {
               </Text>
             </View>
 
-            {/* Pin Action */}
             <TouchableOpacity
               onPress={() => togglePinTrack(item.id)}
               style={styles.actionBtn}
@@ -155,7 +174,6 @@ export default function OfflineHubScreen() {
               />
             </TouchableOpacity>
 
-            {/* Remove Action */}
             <TouchableOpacity
               onPress={() => void OfflineHubService.removeTrack(item.id)}
               style={styles.actionBtn}
@@ -166,7 +184,6 @@ export default function OfflineHubScreen() {
         )}
       />
 
-      {/* Quota Settings Modal */}
       <Modal visible={settingsModalOpen} transparent animationType="fade">
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
