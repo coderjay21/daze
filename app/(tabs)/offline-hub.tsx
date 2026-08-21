@@ -8,12 +8,14 @@ import {
   TouchableOpacity,
   Modal,
   RefreshControl,
+  Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useOfflineHubStore } from "@/stores/offlineHubStore";
 import { OfflineHubService } from "@/services/OfflineHubService";
 import { playerService } from "@/services/PlayerService";
+import * as FileSystem from "expo-file-system";
 
 const QUOTA_OPTIONS = [250, 500, 1000];
 
@@ -21,50 +23,72 @@ export default function OfflineHubScreen() {
   const hasConfigured = useOfflineHubStore((s) => s.hasConfigured);
   const maxQuotaMB = useOfflineHubStore((s) => s.maxQuotaMB) || 500;
   const cachedTracks = useOfflineHubStore((s) => s.cachedTracks) || [];
-  const activeMood = useOfflineHubStore((s) => s.activeMood) || "sad";
+  const activeMood = useOfflineHubStore((s) => s.activeMood) || "all";
   const setQuota = useOfflineHubStore((s) => s.setQuota);
   const setHasConfigured = useOfflineHubStore((s) => s.setHasConfigured);
   const setActiveMood = useOfflineHubStore((s) => s.setActiveMood);
   const togglePinTrack = useOfflineHubStore((s) => s.togglePinTrack);
-  const getTotalUsedBytes = useOfflineHubStore((s) => s.getTotalUsedBytes);
+  const addTrackToHub = useOfflineHubStore((s) => s.addTrackToHub);
 
   const [settingsModalOpen, setSettingsModalOpen] = useState(!hasConfigured);
-  
-  // Pull-to-Refresh State
   const [refreshing, setRefreshing] = useState(false);
+  const [testing, setTesting] = useState(false);
 
-  const usedBytes = typeof getTotalUsedBytes === "function" ? getTotalUsedBytes() : 0;
+  const usedBytes = cachedTracks.reduce((acc, t) => acc + (Number(t?.fileSizeBytes) || 0), 0);
   const usedMB = (usedBytes / (1024 * 1024)).toFixed(1);
   const usedPercent = Math.min(100, (Number(usedMB) / maxQuotaMB) * 100);
 
-  const filteredTracks = cachedTracks.filter((t) =>
-    activeMood ? t?.mood === activeMood : true
-  );
+  const filteredTracks = cachedTracks.filter((t) => {
+    if (activeMood === "all") return true;
+    return t?.mood === activeMood;
+  });
 
-  // Manual Refresh Handler
   const onRefresh = useCallback(() => {
     setRefreshing(true);
-    // Zustand apne aap list update rakhta hai, but ye manual trigger feel dega
     setTimeout(() => {
       setRefreshing(false);
-    }, 1200);
+    }, 600);
   }, []);
 
-  const handleSelectQuota = (mb: number) => {
-    setQuota(mb);
-    setHasConfigured(true);
-    setSettingsModalOpen(false);
-  };
+  // 🔍 Direct Diagnostic Test Function
+  const runDiagnosticTest = async () => {
+    try {
+      setTesting(true);
+      const testDir = `${FileSystem.documentDirectory}offline_hub/`;
+      const dirInfo = await FileSystem.getInfoAsync(testDir);
+      if (!dirInfo.exists) {
+        await FileSystem.makeDirectoryAsync(testDir, { intermediates: true });
+      }
 
-  const playHubTrack = (track: any) => {
-    if (!track?.localUri) return;
-    void playerService.playTrack({
-      id: track.id,
-      title: track.title,
-      artist: track.artist,
-      artwork: track.artwork,
-      url: track.localUri,
-    });
+      // Sample verified test audio URL
+      const testAudioUrl = "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3";
+      const targetFile = `${testDir}test_track_1.mp3`;
+
+      const res = await FileSystem.downloadAsync(testAudioUrl, targetFile);
+      const fileInfo = await FileSystem.getInfoAsync(res.uri);
+
+      if (fileInfo.exists) {
+        addTrackToHub({
+          id: "test_track_1",
+          title: "Test Offline Song",
+          artist: "System Diagnostics",
+          artwork: "https://daze.jayagarwal.online/assets/logo.png",
+          localUri: res.uri,
+          fileSizeBytes: fileInfo.size || 4 * 1024 * 1024,
+          mood: "sad",
+          addedAt: Date.now(),
+          playCount: 1,
+          isPinned: false,
+        });
+        Alert.alert("Success! 🎉", "Test song downloaded and added to Hub UI!");
+      } else {
+        Alert.alert("Error", "File downloaded but not found on disk.");
+      }
+    } catch (err: any) {
+      Alert.alert("Diagnostic Failed", err?.message || String(err));
+    } finally {
+      setTesting(false);
+    }
   };
 
   return (
@@ -73,15 +97,24 @@ export default function OfflineHubScreen() {
         <View>
           <Text style={styles.headerTitle}>Offline Hub ⚡</Text>
           <Text style={styles.headerSubtitle}>
-            Smart Auto-Vault • {cachedTracks.length} tracks cached
+            Smart Auto-Vault • {cachedTracks.length} total tracks
           </Text>
         </View>
-        <TouchableOpacity
-          style={styles.settingsBtn}
-          onPress={() => setSettingsModalOpen(true)}
-        >
-          <MaterialCommunityIcons name="cog" size={22} color="#fff" />
-        </TouchableOpacity>
+        <View style={styles.headerActions}>
+          <TouchableOpacity
+            style={styles.testBtn}
+            onPress={runDiagnosticTest}
+            disabled={testing}
+          >
+            <Text style={styles.testBtnText}>{testing ? "Testing..." : "⚡ Test"}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.settingsBtn}
+            onPress={() => setSettingsModalOpen(true)}
+          >
+            <MaterialCommunityIcons name="cog" size={22} color="#fff" />
+          </TouchableOpacity>
+        </View>
       </View>
 
       <View style={styles.storageCard}>
@@ -97,25 +130,24 @@ export default function OfflineHubScreen() {
       </View>
 
       <View style={styles.moodContainer}>
-        {(["sad", "romantic", "chill", "upbeat"] as const).map((m) => (
+        {[
+          { key: "all", label: "⚡ All Songs" },
+          { key: "sad", label: "💔 Melancholy" },
+          { key: "romantic", label: "❤️ Romantic" },
+          { key: "chill", label: "☕ Chill" },
+        ].map((m) => (
           <TouchableOpacity
-            key={m}
-            style={[styles.moodChip, activeMood === m && styles.moodChipActive]}
-            onPress={() => setActiveMood(m)}
+            key={m.key}
+            style={[styles.moodChip, activeMood === m.key && styles.moodChipActive]}
+            onPress={() => setActiveMood(m.key)}
           >
             <Text
               style={[
                 styles.moodChipText,
-                activeMood === m && styles.moodChipTextActive,
+                activeMood === m.key && styles.moodChipTextActive,
               ]}
             >
-              {m === "sad"
-                ? "💔 Sad"
-                : m === "romantic"
-                ? "❤️ Romantic"
-                : m === "chill"
-                ? "☕ Chill"
-                : "⚡ Upbeat"}
+              {m.label}
             </Text>
           </TouchableOpacity>
         ))}
@@ -123,10 +155,8 @@ export default function OfflineHubScreen() {
 
       <FlatList
         data={filteredTracks}
-        keyExtractor={(item) => item?.id || Math.random().toString()}
+        keyExtractor={(item, index) => item?.id || index.toString()}
         contentContainerStyle={styles.listContent}
-        
-        // PULL TO REFRESH LOGIC
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -135,20 +165,27 @@ export default function OfflineHubScreen() {
             colors={["#1DB954"]}
           />
         }
-        
         ListEmptyComponent={
           <View style={styles.emptyState}>
             <MaterialCommunityIcons name="cloud-sync" size={48} color="#404040" />
-            <Text style={styles.emptyTitle}>Vault is filling up</Text>
+            <Text style={styles.emptyTitle}>No songs cached yet</Text>
             <Text style={styles.emptyDesc}>
-              Listen to songs online. Daze will auto-cache your favorite {activeMood} tracks up to {maxQuotaMB}MB! (Swipe down to refresh)
+              Tap the "⚡ Test" button at the top-right to verify caching, or play songs online!
             </Text>
           </View>
         }
         renderItem={({ item }) => (
           <TouchableOpacity
             style={styles.trackRow}
-            onPress={() => playHubTrack(item)}
+            onPress={() =>
+              void playerService.playTrack({
+                id: item.id,
+                title: item.title,
+                artist: item.artist,
+                artwork: item.artwork,
+                url: item.localUri,
+              })
+            }
           >
             <Image
               source={{ uri: item.artwork || "https://daze.jayagarwal.online/assets/logo.png" }}
@@ -189,7 +226,7 @@ export default function OfflineHubScreen() {
           <View style={styles.modalCard}>
             <Text style={styles.modalTitle}>Smart Vault Storage</Text>
             <Text style={styles.modalDesc}>
-              Choose how much offline storage Daze can use to auto-save songs based on your taste:
+              Choose how much offline storage Daze can use to auto-save songs:
             </Text>
 
             <View style={styles.quotaRow}>
@@ -200,7 +237,11 @@ export default function OfflineHubScreen() {
                     styles.quotaOption,
                     maxQuotaMB === mb && styles.quotaOptionSelected,
                   ]}
-                  onPress={() => handleSelectQuota(mb)}
+                  onPress={() => {
+                    setQuota(mb);
+                    setHasConfigured(true);
+                    setSettingsModalOpen(false);
+                  }}
                 >
                   <Text
                     style={[
@@ -238,8 +279,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
   },
+  headerActions: { flexDirection: "row", alignItems: "center", gap: 8 },
   headerTitle: { color: "#fff", fontSize: 24, fontWeight: "800" },
   headerSubtitle: { color: "#94a3b8", fontSize: 13, marginTop: 2 },
+  testBtn: {
+    backgroundColor: "#1DB954",
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 20,
+  },
+  testBtnText: { color: "#000", fontWeight: "700", fontSize: 12 },
   settingsBtn: {
     backgroundColor: "#282828",
     padding: 8,
