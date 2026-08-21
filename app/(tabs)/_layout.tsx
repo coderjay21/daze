@@ -123,6 +123,31 @@ export default function TabLayout() {
           }}
         />
 
+        {/* 4th Tab: Offline Hub (Notification Free) */}
+        <Tabs.Screen
+          name="offline-hub"
+          options={{
+            tabBarIcon: ({ color, focused }) => (
+              <View style={styles.tabItem}>
+                <MaterialCommunityIcons
+                  name={focused ? "lightning-bolt" : "lightning-bolt-outline"}
+                  color={focused ? "#1DB954" : color}
+                  size={26}
+                />
+                <Text
+                  style={[
+                    styles.tabLabel,
+                    { color: focused ? "#1DB954" : "#b3b3b3" },
+                  ]}
+                >
+                  Hub ⚡
+                </Text>
+              </View>
+            ),
+            tabBarAccessibilityLabel: "Offline Hub",
+          }}
+        />
+
         <Tabs.Screen
           name="downloads"
           options={{
