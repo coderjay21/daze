@@ -3,64 +3,59 @@ import { useOfflineHubStore } from "@/stores/offlineHubStore";
 import { Extras, Song } from "@saavn-labs/sdk";
 
 export class TasteEngineService {
-  static onSongPlayed(track: {
+  static async onSongPlayed(track: {
     id: string;
     title: string;
     artist: string;
     artwork: string;
-    downloadUrl?: string; 
+    downloadUrl?: string;
   }) {
+    if (!track?.id) return;
+
     try {
-      if (!track?.id) return;
+      const store = useOfflineHubStore.getState();
+      const alreadyCached = (store.cachedTracks || []).some((t) => t?.id === track.id);
 
-      setTimeout(async () => {
-        try {
-          const store = useOfflineHubStore.getState();
-          const alreadyCached = (store.cachedTracks || []).some(
-            (t) => t?.id === track.id
-          );
-
-          // 1. Asli MP4 Audio fetch karna (Bypass .m3u8 stream)
-          if (!alreadyCached) {
-            const { songs } = await Song.getById({ songIds: track.id });
-            const songData = songs?.[0];
-            
-            if (songData) {
-              const encrypted = songData.media?.encryptedUrl;
-              if (encrypted) {
-                // Decrypting the real download URLs
-                const urls = await Song.experimental.fetchStreamUrls(encrypted, "edge", true);
-                
-                // Best available direct MP4/M4A quality pick karna (Index 3 or 4)
-                const realDownloadUrl = urls[4]?.url || urls[3]?.url || urls[2]?.url || urls[0]?.url;
-
-                if (realDownloadUrl && realDownloadUrl.startsWith("http")) {
-                  await OfflineHubService.downloadTrackToHub({
-                    id: track.id,
-                    title: track.title,
-                    artist: track.artist,
-                    artwork: track.artwork,
-                    downloadUrl: realDownloadUrl, // Now it's a valid file URL
-                    mood: store.activeMood || "sad",
-                  });
-                }
-              }
-            }
+      // 1. Download Current Playing Song
+      if (!alreadyCached) {
+        let finalUrl = track.downloadUrl;
+        
+        // Agar normal stream URL nahi mili, toh fetch karo
+        if (!finalUrl || finalUrl.startsWith("nitro") || finalUrl.startsWith("file")) {
+          const { songs } = await Song.getById({ songIds: track.id });
+          const encrypted = songs?.[0]?.media?.encryptedUrl;
+          if (encrypted) {
+            const urls = await Song.experimental.fetchStreamUrls(encrypted, "edge", true);
+            finalUrl = urls[4]?.url || urls[3]?.url || urls[2]?.url || urls[0]?.url;
           }
-
-          // 2. Relatable (Spotify-like) Gaane fetch karna
-          await TasteEngineService.fetchAndCacheRelatableTracks(track.id);
-        } catch (error) {
-          console.error("TasteEngine Error:", error);
         }
-      }, 1000);
-    } catch (_) {}
+
+        if (finalUrl && finalUrl.startsWith("http")) {
+          await OfflineHubService.downloadTrackToHub({
+            id: track.id,
+            title: track.title,
+            artist: track.artist,
+            artwork: track.artwork,
+            downloadUrl: finalUrl,
+            mood: store.activeMood || "sad",
+          });
+        }
+      }
+
+      // 2. Spotify-like Relatable Songs (Delayed slightly so it doesn't slow down the app)
+      setTimeout(() => {
+        TasteEngineService.fetchAndCacheRelatableTracks(track.id).catch(() => {});
+      }, 2000);
+
+    } catch (error) {
+      console.error("[TasteEngine] Init Failed:", error);
+    }
   }
 
   private static async fetchAndCacheRelatableTracks(seedSongId: string) {
     try {
       const { stationId } = await Extras.createEntityStation({ songIds: [seedSongId] });
-      const { songs } = await Song.getByStationId({ stationId, count: 3 });
+      const { songs } = await Song.getByStationId({ stationId, count: 2 }); // Reduced to 2 for speed
 
       if (!songs || songs.length === 0) return;
 
