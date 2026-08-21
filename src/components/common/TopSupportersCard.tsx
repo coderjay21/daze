@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { StyleSheet, TouchableOpacity, View } from "react-native";
+import { ActivityIndicator, StyleSheet, TouchableOpacity, View } from "react-native";
 import { ProgressBar, Text } from "react-native-paper";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 
@@ -7,45 +7,61 @@ interface Supporter {
   name: string;
   amount: number;
   badge: string;
-  message?: string;
 }
 
 interface CampaignData {
+  month: string;
   current: number;
   goal: number;
-  month: string;
   supporters: Supporter[];
 }
 
-const DEFAULT_DATA: CampaignData = {
-  month: "August 2026",
-  current: 150,
-  goal: 500,
-  supporters: [
-    { name: "Chaitanya", amount: 100, badge: "👑 Top Fan", message: "Keep it up bro!" },
-    { name: "Aman S.", amount: 30, badge: "⭐ VIP" },
-    { name: "Nikhil", amount: 20, badge: "☕ Chai Sponsor" },
-  ],
-};
+const SUPPORTERS_API_URL =
+  "https://raw.githubusercontent.com/coderjay21/daze/main/supporters.json";
 
 interface Props {
   onOpenDonateModal: () => void;
 }
 
 export default function TopSupportersCard({ onOpenDonateModal }: Props) {
-  const [data, setData] = useState<CampaignData>(DEFAULT_DATA);
+  const [data, setData] = useState<CampaignData | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Optionally fetch dynamic JSON from GitHub Raw URL if configured
-    // fetch("https://raw.githubusercontent.com/.../supporters.json").then(...)
+    const fetchSupporters = async () => {
+      try {
+        // Cache-busting timestamp to always fetch latest JSON from GitHub
+        const res = await fetch(`${SUPPORTERS_API_URL}?t=${Date.now()}`);
+        if (res.ok) {
+          const json: CampaignData = await res.json();
+          setData(json);
+        }
+      } catch (err) {
+        console.warn("[TopSupporters] Failed to fetch live supporters data:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    void fetchSupporters();
   }, []);
 
-  const progress = Math.min(data.current / data.goal, 1);
+  if (loading && !data) {
+    return (
+      <View style={[styles.card, styles.loadingCard]}>
+        <ActivityIndicator color="#22c55e" size="small" />
+      </View>
+    );
+  }
+
+  if (!data) return null;
+
+  const progress = data.goal > 0 ? Math.min(data.current / data.goal, 1) : 0;
   const percentage = Math.round(progress * 100);
 
   return (
     <View style={styles.card}>
-      {/* Header & Goal */}
+      {/* Header & Monthly Target */}
       <View style={styles.headerRow}>
         <View style={styles.titleContainer}>
           <MaterialCommunityIcons name="heart-flash" size={20} color="#22c55e" />
@@ -68,19 +84,23 @@ export default function TopSupportersCard({ onOpenDonateModal }: Props) {
       </View>
 
       {/* Wall of Fame List */}
-      <View style={styles.supportersList}>
-        <Text style={styles.wallTitle}>🏆 Wall of Fame</Text>
-        {data.supporters.map((item, idx) => (
-          <View key={idx} style={styles.supporterItem}>
-            <View style={styles.supporterLeft}>
-              <Text style={styles.supporterRank}>#{idx + 1}</Text>
-              <Text style={styles.supporterName}>{item.name}</Text>
-              <Text style={styles.supporterBadge}>{item.badge}</Text>
+      {data.supporters && data.supporters.length > 0 && (
+        <View style={styles.supportersList}>
+          <Text style={styles.wallTitle}>🏆 Wall of Fame</Text>
+          {data.supporters.map((item, idx) => (
+            <View key={idx} style={styles.supporterItem}>
+              <View style={styles.supporterLeft}>
+                <Text style={styles.supporterRank}>#{idx + 1}</Text>
+                <Text style={styles.supporterName}>{item.name}</Text>
+                {item.badge ? (
+                  <Text style={styles.supporterBadge}>{item.badge}</Text>
+                ) : null}
+              </View>
+              <Text style={styles.supporterAmount}>₹{item.amount}</Text>
             </View>
-            <Text style={styles.supporterAmount}>₹{item.amount}</Text>
-          </View>
-        ))}
-      </View>
+          ))}
+        </View>
+      )}
 
       {/* Action Button */}
       <TouchableOpacity
@@ -100,10 +120,16 @@ const styles = StyleSheet.create({
     backgroundColor: "#1e1e1e",
     borderRadius: 16,
     padding: 16,
-    marginHorizontal: 16,
-    marginVertical: 12,
+    marginHorizontal: 20,
+    marginTop: 8,
+    marginBottom: 12,
     borderWidth: 1,
     borderColor: "#2e2e2e",
+  },
+  loadingCard: {
+    height: 90,
+    justifyContent: "center",
+    alignItems: "center",
   },
   headerRow: {
     flexDirection: "row",
