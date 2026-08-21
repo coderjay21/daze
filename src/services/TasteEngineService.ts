@@ -8,12 +8,11 @@ export class TasteEngineService {
     title: string;
     artist: string;
     artwork: string;
-    downloadUrl?: string;
+    downloadUrl?: string; 
   }) {
     try {
       if (!track?.id) return;
 
-      // Background pipeline
       setTimeout(async () => {
         try {
           const store = useOfflineHubStore.getState();
@@ -21,35 +20,38 @@ export class TasteEngineService {
             (t) => t?.id === track.id
           );
 
-          // 1. Current Song ko Sahi (Real) URL se download karna
+          // 1. Asli MP4 Audio fetch karna (Bypass .m3u8 stream)
           if (!alreadyCached) {
-            // Player wale stream URL ki jagah direct MP4 URL nikalna
             const { songs } = await Song.getById({ songIds: track.id });
             const songData = songs?.[0];
             
             if (songData) {
-              const realDownloadUrl =
-                songData.media?.mp4Url?.find((u: any) => u.quality === "320kbps")?.url ||
-                songData.media?.mp4Url?.[0]?.url ||
-                songData.media?.url;
+              const encrypted = songData.media?.encryptedUrl;
+              if (encrypted) {
+                // Decrypting the real download URLs
+                const urls = await Song.experimental.fetchStreamUrls(encrypted, "edge", true);
+                
+                // Best available direct MP4/M4A quality pick karna (Index 3 or 4)
+                const realDownloadUrl = urls[4]?.url || urls[3]?.url || urls[2]?.url || urls[0]?.url;
 
-              if (realDownloadUrl) {
-                await OfflineHubService.downloadTrackToHub({
-                  id: track.id,
-                  title: track.title,
-                  artist: track.artist,
-                  artwork: track.artwork,
-                  downloadUrl: realDownloadUrl,
-                  mood: store.activeMood || "sad",
-                });
+                if (realDownloadUrl && realDownloadUrl.startsWith("http")) {
+                  await OfflineHubService.downloadTrackToHub({
+                    id: track.id,
+                    title: track.title,
+                    artist: track.artist,
+                    artwork: track.artwork,
+                    downloadUrl: realDownloadUrl, // Now it's a valid file URL
+                    mood: store.activeMood || "sad",
+                  });
+                }
               }
             }
           }
 
-          // 2. Relatable Gaane dhoondhna
+          // 2. Relatable (Spotify-like) Gaane fetch karna
           await TasteEngineService.fetchAndCacheRelatableTracks(track.id);
         } catch (error) {
-          console.error("TasteEngine background process failed:", error);
+          console.error("TasteEngine Error:", error);
         }
       }, 1000);
     } catch (_) {}
@@ -68,20 +70,21 @@ export class TasteEngineService {
         const alreadyCached = (store.cachedTracks || []).some((t) => t.id === item.id);
         if (alreadyCached) continue;
 
-        const downloadUrl =
-          item.media?.mp4Url?.find((u: any) => u.quality === "320kbps")?.url ||
-          item.media?.mp4Url?.[0]?.url ||
-          item.media?.url;
+        const encrypted = item.media?.encryptedUrl;
+        if (encrypted) {
+          const urls = await Song.experimental.fetchStreamUrls(encrypted, "edge", true);
+          const realDownloadUrl = urls[4]?.url || urls[3]?.url || urls[2]?.url || urls[0]?.url;
 
-        if (downloadUrl) {
-          await OfflineHubService.downloadTrackToHub({
-            id: item.id,
-            title: item.title,
-            artist: item.artists?.primary?.[0]?.name || "Unknown",
-            artwork: item.images?.[2]?.url || item.images?.[1]?.url || "",
-            downloadUrl,
-            mood: store.activeMood || "sad",
-          });
+          if (realDownloadUrl && realDownloadUrl.startsWith("http")) {
+            await OfflineHubService.downloadTrackToHub({
+              id: item.id,
+              title: item.title || "Unknown",
+              artist: item.artists?.primary?.[0]?.name || "Unknown",
+              artwork: item.images?.[2]?.url || item.images?.[1]?.url || "",
+              downloadUrl: realDownloadUrl,
+              mood: store.activeMood || "sad",
+            });
+          }
         }
       }
     } catch (_) {}
