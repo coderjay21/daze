@@ -8,14 +8,12 @@ import {
   TouchableOpacity,
   Modal,
   RefreshControl,
-  Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useOfflineHubStore } from "@/stores/offlineHubStore";
 import { OfflineHubService } from "@/services/OfflineHubService";
 import { playerService } from "@/services/PlayerService";
-import * as FileSystem from "expo-file-system/legacy";
 
 const QUOTA_OPTIONS = [250, 500, 1000];
 
@@ -28,11 +26,9 @@ export default function OfflineHubScreen() {
   const setHasConfigured = useOfflineHubStore((s) => s.setHasConfigured);
   const setActiveMood = useOfflineHubStore((s) => s.setActiveMood);
   const togglePinTrack = useOfflineHubStore((s) => s.togglePinTrack);
-  const addTrackToHub = useOfflineHubStore((s) => s.addTrackToHub);
 
   const [settingsModalOpen, setSettingsModalOpen] = useState(!hasConfigured);
   const [refreshing, setRefreshing] = useState(false);
-  const [testing, setTesting] = useState(false);
 
   const usedBytes = cachedTracks.reduce((acc, t) => acc + (Number(t?.fileSizeBytes) || 0), 0);
   const usedMB = (usedBytes / (1024 * 1024)).toFixed(1);
@@ -50,45 +46,6 @@ export default function OfflineHubScreen() {
     }, 600);
   }, []);
 
-  const runDiagnosticTest = async () => {
-    try {
-      setTesting(true);
-      const testDir = `${FileSystem.documentDirectory}offline_hub/`;
-      const dirInfo = await FileSystem.getInfoAsync(testDir);
-      if (!dirInfo.exists) {
-        await FileSystem.makeDirectoryAsync(testDir, { intermediates: true });
-      }
-
-      const testAudioUrl = "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3";
-      const targetFile = `${testDir}test_track_1.mp3`;
-
-      const res = await FileSystem.downloadAsync(testAudioUrl, targetFile);
-      const fileInfo = await FileSystem.getInfoAsync(res.uri);
-
-      if (fileInfo.exists) {
-        addTrackToHub({
-          id: "test_track_1",
-          title: "Test Offline Song",
-          artist: "System Diagnostics",
-          artwork: "https://daze.jayagarwal.online/assets/logo.png",
-          localUri: res.uri,
-          fileSizeBytes: fileInfo.size || 4 * 1024 * 1024,
-          mood: "sad",
-          addedAt: Date.now(),
-          playCount: 1,
-          isPinned: false,
-        });
-        Alert.alert("Success! 🎉", "Test song downloaded and added to Hub UI!");
-      } else {
-        Alert.alert("Error", "File downloaded but not found on disk.");
-      }
-    } catch (err: any) {
-      Alert.alert("Diagnostic Failed", err?.message || String(err));
-    } finally {
-      setTesting(false);
-    }
-  };
-
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
       <View style={styles.header}>
@@ -98,21 +55,12 @@ export default function OfflineHubScreen() {
             Smart Auto-Vault • {cachedTracks.length} total tracks
           </Text>
         </View>
-        <View style={styles.headerActions}>
-          <TouchableOpacity
-            style={styles.testBtn}
-            onPress={runDiagnosticTest}
-            disabled={testing}
-          >
-            <Text style={styles.testBtnText}>{testing ? "Testing..." : "⚡ Test"}</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.settingsBtn}
-            onPress={() => setSettingsModalOpen(true)}
-          >
-            <MaterialCommunityIcons name="cog" size={22} color="#fff" />
-          </TouchableOpacity>
-        </View>
+        <TouchableOpacity
+          style={styles.settingsBtn}
+          onPress={() => setSettingsModalOpen(true)}
+        >
+          <MaterialCommunityIcons name="cog" size={22} color="#fff" />
+        </TouchableOpacity>
       </View>
 
       <View style={styles.storageCard}>
@@ -168,7 +116,7 @@ export default function OfflineHubScreen() {
             <MaterialCommunityIcons name="cloud-sync" size={48} color="#404040" />
             <Text style={styles.emptyTitle}>No songs cached yet</Text>
             <Text style={styles.emptyDesc}>
-              Tap the "⚡ Test" button at the top-right to verify caching, or play songs online!
+              Listen to songs online. Daze will auto-cache your favorite tracks up to {maxQuotaMB}MB!
             </Text>
           </View>
         }
@@ -277,16 +225,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
   },
-  headerActions: { flexDirection: "row", alignItems: "center", gap: 8 },
   headerTitle: { color: "#fff", fontSize: 24, fontWeight: "800" },
   headerSubtitle: { color: "#94a3b8", fontSize: 13, marginTop: 2 },
-  testBtn: {
-    backgroundColor: "#1DB954",
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 20,
-  },
-  testBtnText: { color: "#000", fontWeight: "700", fontSize: 12 },
   settingsBtn: {
     backgroundColor: "#282828",
     padding: 8,
