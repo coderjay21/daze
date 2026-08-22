@@ -1,120 +1,127 @@
-import HomeScreen from "@/screens/Home";
-import { useUIStore } from "@/stores/uiStore";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
-import NetInfo from "@react-native-community/netinfo";
-import { router, useLocalSearchParams } from "expo-router";
-import React, { useEffect, useState } from "react";
-import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import React, { useEffect, useState, useCallback } from "react";
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  FlatList,
+  Image,
+  TouchableOpacity,
+  RefreshControl,
+  ActivityIndicator,
+} from "react-native";
+import { HomeFeedService, PersonalizedFeedSection } from "@/services/HomeFeedService";
+import { playerService } from "@/services/PlayerService";
+import { Models } from "@saavn-labs/sdk";
 
-export default function HomeTab() {
-  const { showPlayer } = useLocalSearchParams<{ showPlayer?: string }>();
-  const isFullPlayerVisible = useUIStore((state) => state.isFullPlayerVisible);
-  const [isConnected, setIsConnected] = useState<boolean>(true);
+interface HomeScreenProps {
+  onAlbumPress: (id: string) => void;
+  onPlaylistPress: (id: string) => void;
+  onSearchFocus: () => void;
+  deferInitialLoad?: boolean;
+}
+
+export default function HomeScreen({ deferInitialLoad }: HomeScreenProps) {
+  const [feedSections, setFeedSections] = useState<PersonalizedFeedSection[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const loadFeed = async () => {
+    try {
+      const data = await HomeFeedService.getPersonalizedFeed();
+      setFeedSections(data);
+    } catch (err) {
+      console.error("Home feed fetch error:", err);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
 
   useEffect(() => {
-    const unsubscribe = NetInfo.addEventListener((state) => {
-      const online = Boolean(state.isConnected && state.isInternetReachable !== false);
-      setIsConnected(online);
-    });
+    if (!deferInitialLoad) {
+      void loadFeed();
+    }
+  }, [deferInitialLoad]);
 
-    return () => unsubscribe();
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    void loadFeed();
   }, []);
 
-  const shouldDeferLoad = showPlayer === "true" || isFullPlayerVisible;
-
-  if (!isConnected) {
-    return (
-      <SafeAreaView style={styles.container} edges={["top"]}>
-        <View style={styles.offlineContainer}>
-          <View style={styles.offlineIconBox}>
-            <MaterialCommunityIcons name="wifi-off" size={44} color="#ef4444" />
-          </View>
-
-          <Text style={styles.offlineTitle}>You are currently offline</Text>
-          <Text style={styles.offlineSubtitle}>
-            No internet connection. Don't worry, your personalized songs are waiting for you in the Hub!
-          </Text>
-
-          <TouchableOpacity
-            style={styles.goToHubBtn}
-            onPress={() => router.push("/(tabs)/offline-hub" as any)}
-          >
-            <MaterialCommunityIcons name="lightning-bolt" size={20} color="#000" />
-            <Text style={styles.goToHubBtnText}>Go to Offline Hub ⚡</Text>
-          </TouchableOpacity>
-
-          <Text style={styles.autoReconnectText}>
-            Home feed will automatically reload when you're back online.
-          </Text>
-        </View>
-      </SafeAreaView>
-    );
-  }
+  const handlePlaySong = (song: Models.Song, queue: Models.Song[]) => {
+    void playerService.play(song, queue);
+  };
 
   return (
-    <HomeScreen
-      onAlbumPress={(id) => router.push(`/album/${id}`)}
-      onPlaylistPress={(id) => router.push(`/playlist/${id}`)}
-      onSearchFocus={() => router.push("/search")}
-      deferInitialLoad={shouldDeferLoad}
-    />
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={styles.scrollContent}
+      refreshControl={
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={onRefresh}
+          tintColor="#1DB954"
+          colors={["#1DB954"]}
+        />
+      }
+    >
+      <Text style={styles.headerGreeting}>Made For You</Text>
+
+      {loading && !refreshing ? (
+        <ActivityIndicator size="large" color="#1DB954" style={{ marginTop: 40 }} />
+      ) : (
+        feedSections.map((section, idx) => (
+          <View key={`${section.title}-${idx}`} style={styles.sectionContainer}>
+            <Text style={styles.sectionTitle}>{section.title}</Text>
+            {section.subtitle && (
+              <Text style={styles.sectionSubtitle}>{section.subtitle}</Text>
+            )}
+
+            <FlatList
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              data={section.songs}
+              keyExtractor={(item) => item.id}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={styles.songCard}
+                  onPress={() => handlePlaySong(item, section.songs)}
+                >
+                  <Image
+                    source={{
+                      uri:
+                        item.images?.[2]?.url ||
+                        item.images?.[1]?.url ||
+                        "https://daze.jayagarwal.online/assets/logo.png",
+                    }}
+                    style={styles.songArtwork}
+                  />
+                  <Text style={styles.songTitle} numberOfLines={1}>
+                    {item.title}
+                  </Text>
+                  <Text style={styles.songArtist} numberOfLines={1}>
+                    {item.artists?.primary?.[0]?.name || "Artist"}
+                  </Text>
+                </TouchableOpacity>
+              )}
+            />
+          </View>
+        ))
+      )}
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#121212",
-  },
-  offlineContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    paddingHorizontal: 32,
-    marginBottom: 60,
-  },
-  offlineIconBox: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: "rgba(239, 68, 68, 0.12)",
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 20,
-  },
-  offlineTitle: {
-    fontSize: 20,
-    fontWeight: "800",
-    color: "#fff",
-    marginBottom: 8,
-    textAlign: "center",
-  },
-  offlineSubtitle: {
-    fontSize: 13,
-    color: "#94a3b8",
-    textAlign: "center",
-    lineHeight: 20,
-    marginBottom: 24,
-  },
-  goToHubBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    backgroundColor: "#1DB954",
-    paddingVertical: 14,
-    paddingHorizontal: 24,
-    borderRadius: 30,
-    marginBottom: 16,
-  },
-  goToHubBtnText: {
-    color: "#000",
-    fontSize: 14,
-    fontWeight: "800",
-  },
-  autoReconnectText: {
-    fontSize: 11,
-    color: "#64748b",
-    textAlign: "center",
-  },
+  container: { flex: 1, backgroundColor: "#121212" },
+  scrollContent: { paddingHorizontal: 16, paddingTop: 16, paddingBottom: 130 },
+  headerGreeting: { color: "#fff", fontSize: 24, fontWeight: "800", marginBottom: 20 },
+  sectionContainer: { marginBottom: 24 },
+  sectionTitle: { color: "#fff", fontSize: 18, fontWeight: "700" },
+  sectionSubtitle: { color: "#94a3b8", fontSize: 12, marginTop: 2, marginBottom: 12 },
+  songCard: { width: 130, marginRight: 14 },
+  songArtwork: { width: 130, height: 130, borderRadius: 8, backgroundColor: "#282828" },
+  songTitle: { color: "#fff", fontSize: 13, fontWeight: "600", marginTop: 8 },
+  songArtist: { color: "#888", fontSize: 11, marginTop: 2 },
 });
