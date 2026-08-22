@@ -6,7 +6,7 @@ import { HomeFeedService, PersonalizedFeedSection } from "@/services/HomeFeedSer
 import { Models } from "@saavn-labs/sdk";
 
 import { LinearGradient } from "expo-linear-gradient";
-import * as Network from "expo-network";
+import NetInfo from "@react-native-community/netinfo";
 import { router } from "expo-router";
 import React, {
   useCallback,
@@ -36,6 +36,7 @@ import {
   Text,
 } from "react-native-paper";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 
 interface HomeScreenProps {
   onAlbumPress: (albumId: string) => void;
@@ -62,34 +63,29 @@ const LANGUAGES = ["hindi", "english", "punjabi", "tamil", "telugu"];
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const QUICK_PICK_ITEM_WIDTH = (SCREEN_WIDTH - 32 - 12) / 2;
 
-const OfflineFallback: React.FC<{ onRetry: () => void }> = ({ onRetry }) => (
-  <View style={styles.offlineContainer}>
-    <IconButton icon="wifi-off" size={64} iconColor="#666" />
-    <Text variant="headlineSmall" style={styles.offlineTitle}>
-      No Internet Connection
-    </Text>
-    <Text variant="bodyMedium" style={styles.offlineMessage}>
-      Please check your internet connection and try again.
-    </Text>
-    <View style={styles.offlineButtons}>
-      <Button
-        mode="contained"
-        onPress={onRetry}
-        style={styles.retryButton}
-        buttonColor={COLORS.PRIMARY}
-        textColor="#000"
-      >
-        Retry
-      </Button>
-      <Button
-        mode="outlined"
-        onPress={() => router.push("/(tabs)/offline-hub" as any)}
-        style={styles.downloadsButton}
-        textColor="#fff"
-      >
-        Go to Offline Hub ⚡
-      </Button>
+// 🔴 Spotify-Style Dedicated Offline Screen
+const SpotifyOfflineView: React.FC = () => (
+  <View style={styles.spotifyOfflineContainer}>
+    <View style={styles.offlineIconRing}>
+      <MaterialCommunityIcons name="wifi-off" size={48} color="#1DB954" />
     </View>
+    <Text style={styles.spotifyOfflineTitle}>You're Offline</Text>
+    <Text style={styles.spotifyOfflineSub}>
+      No internet connection. Don't worry, your personalized songs are waiting for you in the Vault!
+    </Text>
+
+    <TouchableOpacity
+      style={styles.goToHubButton}
+      onPress={() => router.push("/(tabs)/offline-hub" as any)}
+      activeOpacity={0.85}
+    >
+      <MaterialCommunityIcons name="lightning-bolt" size={22} color="#000" />
+      <Text style={styles.goToHubButtonText}>Go to Offline Hub ⚡</Text>
+    </TouchableOpacity>
+
+    <Text style={styles.reconnectNotice}>
+      Home feed will automatically reload when you're back online.
+    </Text>
   </View>
 );
 
@@ -244,8 +240,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
   } = useHomeStore();
 
   const [personalizedSections, setPersonalizedSections] = useState<PersonalizedFeedSection[]>([]);
-  const [isConnected, setIsConnected] = useState(true);
-  const [showOffline, setShowOffline] = useState(false);
+  const [isConnected, setIsConnected] = useState<boolean>(true);
 
   const greeting = useMemo(() => {
     const hour = new Date().getHours();
@@ -254,17 +249,20 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
     return "Good evening";
   }, []);
 
+  // Realtime Network Status Listener
   useEffect(() => {
-    Network.addNetworkStateListener((state) => {
-      setIsConnected(state.isConnected ?? false);
+    const unsubscribe = NetInfo.addEventListener((state) => {
+      const isOnline = Boolean(state.isConnected && state.isInternetReachable !== false);
+      setIsConnected(isOnline);
 
-      if (!state.isConnected && sections.length === 0 && !loading) {
-        setShowOffline(true);
-      } else {
-        setShowOffline(false);
+      if (isOnline && selectedLanguage) {
+        loadHomeData(selectedLanguage);
+        void HomeFeedService.getPersonalizedFeed().then((res) => setPersonalizedSections(res));
       }
     });
-  }, [sections.length, loading]);
+
+    return () => unsubscribe();
+  }, [selectedLanguage, loadHomeData]);
 
   useEffect(() => {
     loadPreferences();
@@ -277,7 +275,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
   const hasDeferred = useRef(false);
 
   useEffect(() => {
-    if (!selectedLanguage) return;
+    if (!selectedLanguage || !isConnected) return;
     if (lastLoadedLanguage.current === selectedLanguage) return;
 
     if (deferInitialLoad && !hasDeferred.current) {
@@ -291,7 +289,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
 
     lastLoadedLanguage.current = selectedLanguage;
     loadHomeData(selectedLanguage);
-  }, [loadHomeData, selectedLanguage, deferInitialLoad]);
+  }, [loadHomeData, selectedLanguage, deferInitialLoad, isConnected]);
 
   const handleTrackPress = useCallback(
     (track: Models.Song, allTracks: Models.Song[]) => {
@@ -317,13 +315,6 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
     },
     [setContentQuality],
   );
-
-  const handleRetry = useCallback(() => {
-    if (selectedLanguage) {
-      loadHomeData(selectedLanguage);
-      void HomeFeedService.getPersonalizedFeed().then((res) => setPersonalizedSections(res));
-    }
-  }, [selectedLanguage, loadHomeData]);
 
   const renderSkeletonQuickPicks = useCallback(
     () => (
@@ -513,19 +504,6 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
     [renderSkeletonSongList, renderSkeletonHorizontalList],
   );
 
-  if (showOffline) {
-    return (
-      <View style={styles.container}>
-        <StatusBar
-          barStyle="light-content"
-          backgroundColor="transparent"
-          translucent
-        />
-        <OfflineFallback onRetry={handleRetry} />
-      </View>
-    );
-  }
-
   return (
     <View style={styles.container}>
       <StatusBar
@@ -534,6 +512,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
         translucent
       />
 
+      {/* Header Bar */}
       <LinearGradient
         colors={["#1db954", "#121212"]}
         style={styles.headerGradient}
@@ -585,73 +564,69 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
               What do you want to listen to?
             </Text>
           </TouchableOpacity>
-
-          {!isConnected && sections.length > 0 && (
-            <View style={styles.offlineBanner}>
-              <IconButton icon="wifi-off" size={16} iconColor="#ff9800" />
-              <Text style={styles.offlineBannerText}>
-                You're offline • Showing cached content
-              </Text>
-            </View>
-          )}
         </View>
       </LinearGradient>
 
-      <ScrollView
-        style={styles.scrollView}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={[
-          styles.scrollContent,
-          { paddingBottom: bottomPadding },
-        ]}
-      >
-        {(loading || sections.length > 0) && renderLanguageChips}
+      {/* 🟢 ONLINE vs 🔴 OFFLINE Render Switch */}
+      {!isConnected ? (
+        <SpotifyOfflineView />
+      ) : (
+        <ScrollView
+          style={styles.scrollView}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={[
+            styles.scrollContent,
+            { paddingBottom: bottomPadding },
+          ]}
+        >
+          {(loading || sections.length > 0) && renderLanguageChips}
 
-        <View style={styles.section}>{renderQuickPicks()}</View>
+          <View style={styles.section}>{renderQuickPicks()}</View>
 
-        {/* 🧠 Personalized TasteEngine Sections (Jump back in & artist recommendations) */}
-        {personalizedSections.length > 0 &&
-          personalizedSections.map((pSection, idx) => (
-            <View key={`p-${pSection.title}-${idx}`} style={styles.section}>
-              <Text variant="titleLarge" style={styles.sectionTitle}>
-                {pSection.title}
-              </Text>
-              <FlatList
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.horizontalList}
-                data={pSection.songs}
-                keyExtractor={(item) => `p-${item.id}`}
-                renderItem={({ item }) => (
-                  <GenericMediaItem
-                    data={{
-                      id: item.id,
-                      title: item.title,
-                      subtitle: item.artists?.primary?.[0]?.name || "Artist",
-                      image: item.images?.[2]?.url || item.images?.[1]?.url || "",
-                      type: "song",
-                    } as any}
-                    type="song"
-                    onPress={() => handleTrackPress(item, pSection.songs)}
-                    horizontal
-                  />
-                )}
-              />
-            </View>
-          ))}
-
-        {/* 🎵 Regular Catalog Sections (Trending, Albums, Playlists) */}
-        {loading
-          ? renderSkeletonSections()
-          : sections.map((section, index) => (
-              <View key={`${section.title}-${index}`} style={styles.section}>
+          {/* 🧠 Personalized TasteEngine Sections */}
+          {personalizedSections.length > 0 &&
+            personalizedSections.map((pSection, idx) => (
+              <View key={`p-${pSection.title}-${idx}`} style={styles.section}>
                 <Text variant="titleLarge" style={styles.sectionTitle}>
-                  {section.title}
+                  {pSection.title}
                 </Text>
-                {renderSection(section)}
+                <FlatList
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.horizontalList}
+                  data={pSection.songs}
+                  keyExtractor={(item) => `p-${item.id}`}
+                  renderItem={({ item }) => (
+                    <GenericMediaItem
+                      data={{
+                        id: item.id,
+                        title: item.title,
+                        subtitle: item.artists?.primary?.[0]?.name || "Artist",
+                        image: item.images?.[2]?.url || item.images?.[1]?.url || "",
+                        type: "song",
+                      } as any}
+                      type="song"
+                      onPress={() => handleTrackPress(item, pSection.songs)}
+                      horizontal
+                    />
+                  )}
+                />
               </View>
             ))}
-      </ScrollView>
+
+          {/* 🎵 Regular Catalog Sections */}
+          {loading
+            ? renderSkeletonSections()
+            : sections.map((section, index) => (
+                <View key={`${section.title}-${index}`} style={styles.section}>
+                  <Text variant="titleLarge" style={styles.sectionTitle}>
+                    {section.title}
+                  </Text>
+                  {renderSection(section)}
+                </View>
+              ))}
+        </ScrollView>
+      )}
 
       <Portal>
         <Modal
@@ -765,21 +740,66 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     marginLeft: -4,
   },
-  offlineBanner: {
+
+  /* 🔴 Spotify Offline UI Styles */
+  spotifyOfflineContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 32,
+    paddingBottom: 60,
+  },
+  offlineIconRing: {
+    width: 90,
+    height: 90,
+    borderRadius: 45,
+    backgroundColor: "rgba(29, 185, 84, 0.12)",
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: "rgba(29, 185, 84, 0.25)",
+  },
+  spotifyOfflineTitle: {
+    color: "#fff",
+    fontSize: 22,
+    fontWeight: "800",
+    marginBottom: 8,
+    textAlign: "center",
+  },
+  spotifyOfflineSub: {
+    color: "#94a3b8",
+    fontSize: 13,
+    textAlign: "center",
+    lineHeight: 20,
+    marginBottom: 24,
+  },
+  goToHubButton: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "rgba(255, 152, 0, 0.15)",
-    borderRadius: 6,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    marginTop: 12,
+    gap: 8,
+    backgroundColor: "#1DB954",
+    paddingVertical: 14,
+    paddingHorizontal: 24,
+    borderRadius: 30,
+    marginBottom: 16,
+    elevation: 4,
+    shadowColor: "#1DB954",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
   },
-  offlineBannerText: {
-    color: "#ff9800",
-    fontSize: 13,
-    fontWeight: "600",
-    marginLeft: -4,
+  goToHubButtonText: {
+    color: "#000",
+    fontWeight: "800",
+    fontSize: 15,
   },
+  reconnectNotice: {
+    color: "#64748b",
+    fontSize: 11,
+    textAlign: "center",
+  },
+
   languageChipsContainer: {
     marginBottom: 16,
   },
@@ -925,35 +945,6 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     marginHorizontal: 16,
     width: 160,
-  },
-  offlineContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    paddingHorizontal: 32,
-  },
-  offlineTitle: {
-    color: "#fff",
-    fontWeight: "bold",
-    marginTop: 16,
-    marginBottom: 8,
-    textAlign: "center",
-  },
-  offlineMessage: {
-    color: "#b3b3b3",
-    textAlign: "center",
-    marginBottom: 32,
-  },
-  offlineButtons: {
-    gap: 12,
-    width: "100%",
-  },
-  retryButton: {
-    borderRadius: 25,
-  },
-  downloadsButton: {
-    borderRadius: 25,
-    borderColor: "#fff",
   },
   modalContainer: {
     backgroundColor: "#282828",
