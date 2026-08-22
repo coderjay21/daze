@@ -45,6 +45,7 @@ export interface IPlayerService {
 
 export class PlayerService implements IPlayerService {
   private isInitialized = false;
+  private isExtendingQueue = false;
 
   constructor() {
     this.initialize();
@@ -75,6 +76,7 @@ export class PlayerService implements IPlayerService {
         }
       }
 
+      // Auto-extend dynamic recommendations as track approaches queue tail
       const state = await TrackPlayer.getState();
       const queue = await TrackPlayer.getActualQueue();
 
@@ -98,6 +100,21 @@ export class PlayerService implements IPlayerService {
         }
       }
     });
+
+    // Fallback trigger if queue reaches the end
+    TrackPlayer.onPlaybackEnd(async () => {
+      const state = await TrackPlayer.getState();
+      const queue = await TrackPlayer.getActualQueue();
+      if (state.currentIndex >= queue.length - 1) {
+        const lastTrack = queue[queue.length - 1];
+        if (lastTrack?.id) {
+          const extended = await this.maybeExtendQueue(lastTrack.id);
+          if (extended) {
+            await TrackPlayer.skipToNext();
+          }
+        }
+      }
+    });
   }
 
   async play(song: Models.Song, providedQueue?: Models.Song[]): Promise<void> {
@@ -113,10 +130,18 @@ export class PlayerService implements IPlayerService {
           seen.add(s.id);
           return true;
         });
-        fullQueue = [song, ...filtered];
+
+        // Automatically append radio recommendations if queue is short
+        if (filtered.length < 5) {
+          const recs = await this.fetchRecommendations(song.id);
+          fullQueue = [song, ...filtered, ...recs.slice(0, 15)];
+        } else {
+          fullQueue = [song, ...filtered];
+        }
       } else {
+        // Spotify Infinite Radio Mode: Pre-load matching station tracks
         const recs = await this.fetchRecommendations(song.id);
-        fullQueue = [song, ...recs.slice(0, 10)];
+        fullQueue = [song, ...recs.slice(0, 15)];
       }
 
       const tracks = await Promise.all(fullQueue.map((s) => this.prepareTrack(s)));
@@ -142,7 +167,6 @@ export class PlayerService implements IPlayerService {
       await TrackPlayer.playSong(song.id, playlistId);
       await TrackPlayer.play();
 
-      // 🔥 DIRECT TRIGGER: Pehle gaane par hi cache start karega 🔥
       const artist = song.artists?.primary?.map((a) => a.name).join(", ") || "Unknown";
       const artwork = song.images?.[2]?.url || song.images?.[1]?.url || "";
       TasteEngineService.onSongPlayed({
@@ -351,7 +375,7 @@ export class PlayerService implements IPlayerService {
   private async fetchRecommendations(seedSongId: string): Promise<Models.Song[]> {
     try {
       const { stationId } = await Extras.createEntityStation({ songIds: [seedSongId] });
-      const { songs } = await Song.getByStationId({ stationId });
+      const { songs } = await Song.getByStationId({ stationId, count: 20 });
 
       const history = await historyService.getHistory();
       const playedIds = new Set(history.map((entry) => entry.song.id));
@@ -363,6 +387,9 @@ export class PlayerService implements IPlayerService {
   }
 
   private async maybeExtendQueue(seedSongId: string): Promise<boolean> {
+    if (this.isExtendingQueue) return false;
+    this.isExtendingQueue = true;
+
     try {
       const recs = await this.fetchRecommendations(seedSongId);
       if (recs.length === 0) return false;
@@ -380,6 +407,8 @@ export class PlayerService implements IPlayerService {
     } catch (error) {
       console.error("[Player] Extend queue failed:", error);
       return false;
+    } finally {
+      this.isExtendingQueue = false;
     }
   }
 }
