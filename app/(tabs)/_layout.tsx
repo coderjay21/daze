@@ -1,5 +1,6 @@
 import CompactPlayer from "@/components/player/CompactPlayer";
 import FullPlayer from "@/components/player/FullPlayer";
+import { ForceUpdateModal } from "@/components/common/ForceUpdateModal";
 import { useUIStore } from "@/stores/uiStore";
 import { sizes } from "@/utils";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
@@ -123,7 +124,7 @@ export default function TabLayout() {
           }}
         />
 
-        {/* 4th Tab: Offline Hub (Notification Free) */}
+        {/* 4th Tab: Offline Hub */}
         <Tabs.Screen
           name="offline-hub"
           options={{
@@ -182,6 +183,9 @@ export default function TabLayout() {
         visible={isFullPlayerVisible}
         onClose={() => setFullPlayerVisible(false)}
       />
+
+      {/* Compulsory Force Update Modal */}
+      <ForceUpdateModal />
     </View>
   );
 }
