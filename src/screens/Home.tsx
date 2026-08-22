@@ -6,7 +6,7 @@ import { HomeFeedService, PersonalizedFeedSection } from "@/services/HomeFeedSer
 import { Models } from "@saavn-labs/sdk";
 
 import { LinearGradient } from "expo-linear-gradient";
-import NetInfo from "@react-native-community/netinfo";
+import * as Network from "expo-network";
 import { router } from "expo-router";
 import React, {
   useCallback,
@@ -63,7 +63,7 @@ const LANGUAGES = ["hindi", "english", "punjabi", "tamil", "telugu"];
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const QUICK_PICK_ITEM_WIDTH = (SCREEN_WIDTH - 32 - 12) / 2;
 
-// 🔴 Spotify-Style Dedicated Offline Screen
+// 🔴 Dedicated Offline Screen
 const SpotifyOfflineView: React.FC = () => (
   <View style={styles.spotifyOfflineContainer}>
     <View style={styles.offlineIconRing}>
@@ -249,9 +249,18 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
     return "Good evening";
   }, []);
 
-  // Realtime Network Status Listener
+  // ✅ Uses already installed expo-network
   useEffect(() => {
-    const unsubscribe = NetInfo.addEventListener((state) => {
+    let subscription: Network.NetworkStateListener | null = null;
+
+    async function checkInitialNetwork() {
+      const state = await Network.getNetworkStateAsync();
+      setIsConnected(Boolean(state.isConnected && state.isInternetReachable !== false));
+    }
+
+    void checkInitialNetwork();
+
+    subscription = Network.addNetworkStateListener((state) => {
       const isOnline = Boolean(state.isConnected && state.isInternetReachable !== false);
       setIsConnected(isOnline);
 
@@ -261,7 +270,11 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
       }
     });
 
-    return () => unsubscribe();
+    return () => {
+      if (subscription) {
+        subscription.remove();
+      }
+    };
   }, [selectedLanguage, loadHomeData]);
 
   useEffect(() => {
@@ -512,7 +525,6 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
         translucent
       />
 
-      {/* Header Bar */}
       <LinearGradient
         colors={["#1db954", "#121212"]}
         style={styles.headerGradient}
@@ -567,7 +579,6 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
         </View>
       </LinearGradient>
 
-      {/* 🟢 ONLINE vs 🔴 OFFLINE Render Switch */}
       {!isConnected ? (
         <SpotifyOfflineView />
       ) : (
@@ -583,7 +594,6 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
 
           <View style={styles.section}>{renderQuickPicks()}</View>
 
-          {/* 🧠 Personalized TasteEngine Sections */}
           {personalizedSections.length > 0 &&
             personalizedSections.map((pSection, idx) => (
               <View key={`p-${pSection.title}-${idx}`} style={styles.section}>
@@ -614,7 +624,6 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
               </View>
             ))}
 
-          {/* 🎵 Regular Catalog Sections */}
           {loading
             ? renderSkeletonSections()
             : sections.map((section, index) => (
@@ -741,7 +750,6 @@ const styles = StyleSheet.create({
     marginLeft: -4,
   },
 
-  /* 🔴 Spotify Offline UI Styles */
   spotifyOfflineContainer: {
     flex: 1,
     justifyContent: "center",
