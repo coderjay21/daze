@@ -33,6 +33,7 @@ export class OfflineHubService {
       const targetAudioFile = `${HUB_DIR}${song.id}.m4a`;
       const targetArtworkFile = `${HUB_DIR}${song.id}.jpg`;
 
+      // 🧹 Ensure strict space limit BEFORE downloading
       await OfflineHubService.ensureSpaceForNewTrack(12 * 1024 * 1024);
 
       // 1. Download Audio File
@@ -70,6 +71,10 @@ export class OfflineHubService {
       };
 
       store.addTrackToHub(newTrack);
+
+      // 🧹 Check again post-download to enforce hard limit
+      await OfflineHubService.ensureSpaceForNewTrack(0);
+
       return true;
     } catch (error) {
       console.error("[HubService] Download failed:", song.title, error);
@@ -80,15 +85,16 @@ export class OfflineHubService {
   static async ensureSpaceForNewTrack(requiredBytes: number) {
     try {
       const store = useOfflineHubStore.getState();
-      const maxBytes = (store.maxQuotaMB || 500) * 1024 * 1024;
+      const maxBytes = (store.maxQuotaMB || 250) * 1024 * 1024;
       const cached = store.cachedTracks || [];
       let currentBytes = cached.reduce((acc, t) => acc + (t?.fileSizeBytes || 0), 0);
 
       if (currentBytes + requiredBytes <= maxBytes) return;
 
+      // Evict oldest non-pinned tracks first
       const evictable = [...cached]
         .filter((t) => !t?.isPinned)
-        .sort((a, b) => (a?.playCount || 0) - (b?.playCount || 0) || (a?.addedAt || 0) - (b?.addedAt || 0));
+        .sort((a, b) => (a?.addedAt || 0) - (b?.addedAt || 0));
 
       for (const track of evictable) {
         if (currentBytes + requiredBytes <= maxBytes) break;
