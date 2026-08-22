@@ -30,31 +30,47 @@ export class OfflineHubService {
 
       await OfflineHubService.initDirectory();
       const store = useOfflineHubStore.getState();
-      const targetFile = `${HUB_DIR}${song.id}.m4a`;
+      const targetAudioFile = `${HUB_DIR}${song.id}.m4a`;
+      const targetArtworkFile = `${HUB_DIR}${song.id}.jpg`;
 
-      await OfflineHubService.ensureSpaceForNewTrack(10 * 1024 * 1024);
+      await OfflineHubService.ensureSpaceForNewTrack(12 * 1024 * 1024);
 
-      const downloadRes = await FileSystem.downloadAsync(song.downloadUrl, targetFile);
+      // 1. Download Audio File
+      const downloadRes = await FileSystem.downloadAsync(song.downloadUrl, targetAudioFile);
       const fileInfo = await FileSystem.getInfoAsync(downloadRes.uri);
 
-      if (fileInfo.exists) {
-        const newTrack: HubTrack = {
-          id: song.id,
-          title: song.title || "Unknown",
-          artist: song.artist || "Unknown",
-          artwork: song.artwork || "",
-          localUri: downloadRes.uri,
-          fileSizeBytes: fileInfo.size || 6 * 1024 * 1024,
-          mood: song.mood || "sad",
-          addedAt: Date.now(),
-          playCount: 0,
-          isPinned: false,
-        };
+      if (!fileInfo.exists) return false;
 
-        store.addTrackToHub(newTrack);
-        return true;
+      // 2. Download and Cache Artwork Offline
+      let localArtworkUri = song.artwork;
+      if (song.artwork && song.artwork.startsWith("http")) {
+        try {
+          const imgRes = await FileSystem.downloadAsync(song.artwork, targetArtworkFile);
+          const imgInfo = await FileSystem.getInfoAsync(imgRes.uri);
+          if (imgInfo.exists) {
+            localArtworkUri = imgRes.uri;
+          }
+        } catch (imgErr) {
+          console.warn("[HubService] Artwork offline cache error:", imgErr);
+        }
       }
-      return false;
+
+      // 3. Save to Store with Local Artwork URI
+      const newTrack: HubTrack = {
+        id: song.id,
+        title: song.title || "Unknown",
+        artist: song.artist || "Unknown",
+        artwork: localArtworkUri,
+        localUri: downloadRes.uri,
+        fileSizeBytes: fileInfo.size || 6 * 1024 * 1024,
+        mood: song.mood || "sad",
+        addedAt: Date.now(),
+        playCount: 0,
+        isPinned: false,
+      };
+
+      store.addTrackToHub(newTrack);
+      return true;
     } catch (error) {
       console.error("[HubService] Download failed:", song.title, error);
       return false;
@@ -80,6 +96,9 @@ export class OfflineHubService {
           if (track?.localUri) {
             await FileSystem.deleteAsync(track.localUri, { idempotent: true });
           }
+          if (track?.artwork && track.artwork.startsWith("file://")) {
+            await FileSystem.deleteAsync(track.artwork, { idempotent: true });
+          }
           store.removeTrackFromHub(track.id);
           currentBytes -= track.fileSizeBytes || 0;
         } catch (_) {}
@@ -94,6 +113,9 @@ export class OfflineHubService {
       const track = tracks.find((t) => t.id === id);
       if (track?.localUri) {
         await FileSystem.deleteAsync(track.localUri, { idempotent: true });
+      }
+      if (track?.artwork && track.artwork.startsWith("file://")) {
+        await FileSystem.deleteAsync(track.artwork, { idempotent: true });
       }
       store.removeTrackFromHub(id);
     } catch (_) {}
