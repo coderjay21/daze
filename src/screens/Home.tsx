@@ -2,37 +2,38 @@ import { GenericMediaItem, TrackItem } from "@/components";
 import { AUDIO_QUALITY, COLORS, UI_CONFIG } from "@/constants";
 import { useHomeStore, usePlayerActions, useCurrentSong, useUpdateStore } from "@/stores";
 import { getScreenPaddingBottom } from "@/utils";
+import { HomeFeedService, PersonalizedFeedSection } from "@/services/HomeFeedService";
 import { Models } from "@saavn-labs/sdk";
 
 import { LinearGradient } from "expo-linear-gradient";
 import * as Network from "expo-network";
 import { router } from "expo-router";
 import React, {
-    useCallback,
-    useEffect,
-    useMemo,
-    useRef,
-    useState,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
 } from "react";
 import {
-    Animated,
-    Dimensions,
-    FlatList,
-    Image,
-    ScrollView,
-    StatusBar,
-    StyleSheet,
-    TouchableOpacity,
-    View,
+  Animated,
+  Dimensions,
+  FlatList,
+  Image,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import {
-    Button,
-    Chip,
-    IconButton,
-    Modal,
-    Portal,
-    RadioButton,
-    Text,
+  Button,
+  Chip,
+  IconButton,
+  Modal,
+  Portal,
+  RadioButton,
+  Text,
 } from "react-native-paper";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -82,11 +83,11 @@ const OfflineFallback: React.FC<{ onRetry: () => void }> = ({ onRetry }) => (
       </Button>
       <Button
         mode="outlined"
-        onPress={() => router.push("/downloads")}
+        onPress={() => router.push("/(tabs)/offline-hub" as any)}
         style={styles.downloadsButton}
         textColor="#fff"
       >
-        View Downloads
+        Go to Offline Hub ⚡
       </Button>
     </View>
   </View>
@@ -242,6 +243,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
     loadHomeData,
   } = useHomeStore();
 
+  const [personalizedSections, setPersonalizedSections] = useState<PersonalizedFeedSection[]>([]);
   const [isConnected, setIsConnected] = useState(true);
   const [showOffline, setShowOffline] = useState(false);
 
@@ -266,6 +268,9 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
 
   useEffect(() => {
     loadPreferences();
+    void HomeFeedService.getPersonalizedFeed().then((res) => {
+      setPersonalizedSections(res);
+    });
   }, [loadPreferences]);
 
   const lastLoadedLanguage = useRef<string | null>(null);
@@ -316,6 +321,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
   const handleRetry = useCallback(() => {
     if (selectedLanguage) {
       loadHomeData(selectedLanguage);
+      void HomeFeedService.getPersonalizedFeed().then((res) => setPersonalizedSections(res));
     }
   }, [selectedLanguage, loadHomeData]);
 
@@ -603,6 +609,38 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
 
         <View style={styles.section}>{renderQuickPicks()}</View>
 
+        {/* 🧠 Personalized TasteEngine Sections (Jump back in & artist recommendations) */}
+        {personalizedSections.length > 0 &&
+          personalizedSections.map((pSection, idx) => (
+            <View key={`p-${pSection.title}-${idx}`} style={styles.section}>
+              <Text variant="titleLarge" style={styles.sectionTitle}>
+                {pSection.title}
+              </Text>
+              <FlatList
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.horizontalList}
+                data={pSection.songs}
+                keyExtractor={(item) => `p-${item.id}`}
+                renderItem={({ item }) => (
+                  <GenericMediaItem
+                    data={{
+                      id: item.id,
+                      title: item.title,
+                      subtitle: item.artists?.primary?.[0]?.name || "Artist",
+                      image: item.images?.[2]?.url || item.images?.[1]?.url || "",
+                      type: "song",
+                    } as any}
+                    type="song"
+                    onPress={() => handleTrackPress(item, pSection.songs)}
+                    horizontal
+                  />
+                )}
+              />
+            </View>
+          ))}
+
+        {/* 🎵 Regular Catalog Sections (Trending, Albums, Playlists) */}
         {loading
           ? renderSkeletonSections()
           : sections.map((section, index) => (
