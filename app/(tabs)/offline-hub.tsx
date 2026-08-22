@@ -19,8 +19,10 @@ const QUOTA_OPTIONS = [250, 500, 1000];
 
 export default function OfflineHubScreen() {
   const hasConfigured = useOfflineHubStore((s) => s.hasConfigured);
-  const maxQuotaMB = useOfflineHubStore((s) => s.maxQuotaMB) || 500;
+  const maxQuotaMB = useOfflineHubStore((s) => s.maxQuotaMB) || 250;
   const cachedTracks = useOfflineHubStore((s) => s.cachedTracks) || [];
+  
+  // ✅ 1. Default Tab 'all' selected
   const activeMood = useOfflineHubStore((s) => s.activeMood) || "all";
   const setQuota = useOfflineHubStore((s) => s.setQuota);
   const setHasConfigured = useOfflineHubStore((s) => s.setHasConfigured);
@@ -32,7 +34,9 @@ export default function OfflineHubScreen() {
 
   const usedBytes = cachedTracks.reduce((acc, t) => acc + (Number(t?.fileSizeBytes) || 0), 0);
   const usedMB = (usedBytes / (1024 * 1024)).toFixed(1);
-  const usedPercent = Math.min(100, (Number(usedMB) / maxQuotaMB) * 100);
+  
+  // ✅ 2. Progress bar capped at 100% max
+  const usedPercent = Math.min(100, Math.max(0, (Number(usedMB) / maxQuotaMB) * 100));
 
   const filteredTracks = cachedTracks.filter((t) => {
     if (activeMood === "all") return true;
@@ -75,28 +79,32 @@ export default function OfflineHubScreen() {
         </View>
       </View>
 
+      {/* ✅ Filter Chips (Default 'All' Selected) */}
       <View style={styles.moodContainer}>
         {[
           { key: "all", label: "⚡ All Songs" },
           { key: "sad", label: "💔 Melancholy" },
           { key: "romantic", label: "❤️ Romantic" },
           { key: "chill", label: "☕ Chill" },
-        ].map((m) => (
-          <TouchableOpacity
-            key={m.key}
-            style={[styles.moodChip, activeMood === m.key && styles.moodChipActive]}
-            onPress={() => setActiveMood(m.key)}
-          >
-            <Text
-              style={[
-                styles.moodChipText,
-                activeMood === m.key && styles.moodChipTextActive,
-              ]}
+        ].map((m) => {
+          const isSelected = activeMood === m.key;
+          return (
+            <TouchableOpacity
+              key={m.key}
+              style={[styles.moodChip, isSelected && styles.moodChipActive]}
+              onPress={() => setActiveMood(m.key)}
             >
-              {m.label}
-            </Text>
-          </TouchableOpacity>
-        ))}
+              <Text
+                style={[
+                  styles.moodChipText,
+                  isSelected && styles.moodChipTextActive,
+                ]}
+              >
+                {m.label}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
       </View>
 
       <FlatList
