@@ -27,7 +27,6 @@ import {
   View,
 } from "react-native";
 import {
-  Button,
   Chip,
   IconButton,
   Modal,
@@ -59,11 +58,11 @@ interface QuickPickItem {
 }
 
 const LANGUAGES = ["hindi", "english", "punjabi", "tamil", "telugu"];
+const FALLBACK_IMAGE = "https://daze.jayagarwal.online/assets/logo.png";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const QUICK_PICK_ITEM_WIDTH = (SCREEN_WIDTH - 32 - 12) / 2;
 
-// 🔴 Dedicated Offline Screen
 const SpotifyOfflineView: React.FC = () => (
   <View style={styles.spotifyOfflineContainer}>
     <View style={styles.offlineIconRing}>
@@ -95,16 +94,8 @@ const SkeletonQuickPick: React.FC = React.memo(() => {
   useEffect(() => {
     const animation = Animated.loop(
       Animated.sequence([
-        Animated.timing(fadeAnim, {
-          toValue: 0.7,
-          duration: 1000,
-          useNativeDriver: true,
-        }),
-        Animated.timing(fadeAnim, {
-          toValue: 0.3,
-          duration: 1000,
-          useNativeDriver: true,
-        }),
+        Animated.timing(fadeAnim, { toValue: 0.7, duration: 1000, useNativeDriver: true }),
+        Animated.timing(fadeAnim, { toValue: 0.3, duration: 1000, useNativeDriver: true }),
       ]),
     );
     animation.start();
@@ -133,16 +124,8 @@ const SkeletonHorizontalItem: React.FC = React.memo(() => {
   useEffect(() => {
     const animation = Animated.loop(
       Animated.sequence([
-        Animated.timing(fadeAnim, {
-          toValue: 0.7,
-          duration: 1000,
-          useNativeDriver: true,
-        }),
-        Animated.timing(fadeAnim, {
-          toValue: 0.3,
-          duration: 1000,
-          useNativeDriver: true,
-        }),
+        Animated.timing(fadeAnim, { toValue: 0.7, duration: 1000, useNativeDriver: true }),
+        Animated.timing(fadeAnim, { toValue: 0.3, duration: 1000, useNativeDriver: true }),
       ]),
     );
     animation.start();
@@ -164,16 +147,8 @@ const SkeletonSongItem: React.FC = React.memo(() => {
   useEffect(() => {
     const animation = Animated.loop(
       Animated.sequence([
-        Animated.timing(fadeAnim, {
-          toValue: 0.7,
-          duration: 1000,
-          useNativeDriver: true,
-        }),
-        Animated.timing(fadeAnim, {
-          toValue: 0.3,
-          duration: 1000,
-          useNativeDriver: true,
-        }),
+        Animated.timing(fadeAnim, { toValue: 0.7, duration: 1000, useNativeDriver: true }),
+        Animated.timing(fadeAnim, { toValue: 0.3, duration: 1000, useNativeDriver: true }),
       ]),
     );
     animation.start();
@@ -200,13 +175,12 @@ const QuickPickItem: React.FC<{
     onPress={onPress}
     activeOpacity={0.7}
   >
-    <Image source={{ uri: item.imageUrl }} style={styles.quickPickImage} />
+    <Image
+      source={{ uri: item.imageUrl || FALLBACK_IMAGE }}
+      style={styles.quickPickImage}
+    />
     <View style={styles.quickPickMeta}>
-      <Text
-        numberOfLines={2}
-        style={styles.quickPickTitle}
-        variant="titleSmall"
-      >
+      <Text numberOfLines={2} style={styles.quickPickTitle} variant="titleSmall">
         {item.title}
       </Text>
     </View>
@@ -249,7 +223,6 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
     return "Good evening";
   }, []);
 
-  // ✅ Uses already installed expo-network
   useEffect(() => {
     let subscription: Network.NetworkStateListener | null = null;
 
@@ -329,51 +302,16 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
     [setContentQuality],
   );
 
-  const renderSkeletonQuickPicks = useCallback(
-    () => (
-      <View style={styles.quickPicksGrid}>
-        {Array.from({ length: UI_CONFIG.SKELETON_QUICK_PICKS }).map(
-          (_, index) => (
-            <SkeletonQuickPick key={index} />
-          ),
-        )}
-      </View>
-    ),
-    [],
-  );
-
-  const renderSkeletonHorizontalList = useCallback(
-    () => (
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.horizontalList}
-      >
-        {Array.from({ length: UI_CONFIG.SKELETON_HORIZONTAL_ITEMS }).map(
-          (_, index) => (
-            <SkeletonHorizontalItem key={index} />
-          ),
-        )}
-      </ScrollView>
-    ),
-    [],
-  );
-
-  const renderSkeletonSongList = useCallback(
-    () => (
-      <View style={styles.skeletonSongList}>
-        {Array.from({ length: UI_CONFIG.SKELETON_SONG_ITEMS }).map(
-          (_, index) => (
-            <SkeletonSongItem key={index} />
-          ),
-        )}
-      </View>
-    ),
-    [],
-  );
-
   const renderQuickPicks = useCallback(() => {
-    if (loading) return renderSkeletonQuickPicks();
+    if (loading) {
+      return (
+        <View style={styles.quickPicksGrid}>
+          {Array.from({ length: UI_CONFIG.SKELETON_QUICK_PICKS }).map((_, idx) => (
+            <SkeletonQuickPick key={idx} />
+          ))}
+        </View>
+      );
+    }
     if (quickPicks.length === 0) return null;
 
     return (
@@ -387,7 +325,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
         ))}
       </View>
     );
-  }, [loading, quickPicks, handleQuickPickPress, renderSkeletonQuickPicks]);
+  }, [loading, quickPicks, handleQuickPickPress]);
 
   const renderSongsList = useCallback(
     (songs: Models.Song[]) => (
@@ -477,10 +415,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
           <Chip
             key={lang}
             onPress={() => setSelectedLanguage(lang)}
-            style={[
-              styles.chip,
-              selectedLanguage === lang && styles.chipSelected,
-            ]}
+            style={[styles.chip, selectedLanguage === lang && styles.chipSelected]}
             textStyle={[
               styles.chipText,
               selectedLanguage === lang && styles.chipTextSelected,
@@ -495,35 +430,9 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
     [selectedLanguage],
   );
 
-  const renderSkeletonSections = useCallback(
-    () => (
-      <>
-        <View style={styles.section}>
-          <View style={styles.skeletonSectionTitle} />
-          {renderSkeletonSongList()}
-        </View>
-
-        <View style={styles.section}>
-          <View style={styles.skeletonSectionTitle} />
-          {renderSkeletonHorizontalList()}
-        </View>
-
-        <View style={styles.section}>
-          <View style={styles.skeletonSectionTitle} />
-          {renderSkeletonHorizontalList()}
-        </View>
-      </>
-    ),
-    [renderSkeletonSongList, renderSkeletonHorizontalList],
-  );
-
   return (
     <View style={styles.container}>
-      <StatusBar
-        barStyle="light-content"
-        backgroundColor="transparent"
-        translucent
-      />
+      <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
 
       <LinearGradient
         colors={["#1db954", "#121212"]}
@@ -585,10 +494,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
         <ScrollView
           style={styles.scrollView}
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={[
-            styles.scrollContent,
-            { paddingBottom: bottomPadding },
-          ]}
+          contentContainerStyle={[styles.scrollContent, { paddingBottom: bottomPadding }]}
         >
           {(loading || sections.length > 0) && renderLanguageChips}
 
@@ -606,34 +512,51 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
                   contentContainerStyle={styles.horizontalList}
                   data={pSection.songs}
                   keyExtractor={(item) => `p-${item.id}`}
-                  renderItem={({ item }) => (
-                    <GenericMediaItem
-                      data={{
-                        id: item.id,
-                        title: item.title,
-                        subtitle: item.artists?.primary?.[0]?.name || "Artist",
-                        image: item.images?.[2]?.url || item.images?.[1]?.url || "",
-                        type: "song",
-                      } as any}
-                      type="song"
-                      onPress={() => handleTrackPress(item, pSection.songs)}
-                      horizontal
-                    />
-                  )}
+                  renderItem={({ item }) => {
+                    const cleanArtwork =
+                      item.images?.[2]?.url ||
+                      item.images?.[1]?.url ||
+                      item.images?.[0]?.url ||
+                      FALLBACK_IMAGE;
+
+                    return (
+                      <GenericMediaItem
+                        data={{
+                          id: item.id,
+                          title: item.title,
+                          subtitle: item.artists?.primary?.[0]?.name || "Artist",
+                          image: cleanArtwork,
+                          type: "song",
+                        } as any}
+                        type="song"
+                        onPress={() => handleTrackPress(item, pSection.songs)}
+                        horizontal
+                      />
+                    );
+                  }}
                 />
               </View>
             ))}
 
-          {loading
-            ? renderSkeletonSections()
-            : sections.map((section, index) => (
-                <View key={`${section.title}-${index}`} style={styles.section}>
-                  <Text variant="titleLarge" style={styles.sectionTitle}>
-                    {section.title}
-                  </Text>
-                  {renderSection(section)}
-                </View>
-              ))}
+          {loading ? (
+            <View style={styles.section}>
+              <View style={styles.skeletonSectionTitle} />
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalList}>
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <SkeletonHorizontalItem key={i} />
+                ))}
+              </ScrollView>
+            </View>
+          ) : (
+            sections.map((section, index) => (
+              <View key={`${section.title}-${index}`} style={styles.section}>
+                <Text variant="titleLarge" style={styles.sectionTitle}>
+                  {section.title}
+                </Text>
+                {renderSection(section)}
+              </View>
+            ))
+          )}
         </ScrollView>
       )}
 
@@ -689,40 +612,15 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.BACKGROUND,
-  },
-  scrollView: {
-    flex: 1,
-  },
-  scrollContent: {
-    flexGrow: 1,
-  },
-  headerGradient: {
-    paddingBottom: 8,
-  },
-  header: {
-    paddingHorizontal: 16,
-    paddingBottom: 16,
-  },
-  headerTop: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 16,
-  },
-  greeting: {
-    fontWeight: "bold",
-    color: "#fff",
-    fontSize: 28,
-  },
-  headerNavButton: {
-    margin: 0,
-  },
-  updateIconWrapper: {
-    position: "relative",
-  },
+  container: { flex: 1, backgroundColor: COLORS.BACKGROUND },
+  scrollView: { flex: 1 },
+  scrollContent: { flexGrow: 1 },
+  headerGradient: { paddingBottom: 8 },
+  header: { paddingHorizontal: 16, paddingBottom: 16 },
+  headerTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 16 },
+  greeting: { fontWeight: "bold", color: "#fff", fontSize: 28 },
+  headerNavButton: { margin: 0 },
+  updateIconWrapper: { position: "relative" },
   updateBadge: {
     position: "absolute",
     right: 4,
@@ -743,13 +641,7 @@ const styles = StyleSheet.create({
     paddingRight: 14,
     paddingLeft: 4,
   },
-  searchButtonText: {
-    color: "#121212",
-    fontSize: 14,
-    fontWeight: "600",
-    marginLeft: -4,
-  },
-
+  searchButtonText: { color: "#121212", fontSize: 14, fontWeight: "600", marginLeft: -4 },
   spotifyOfflineContainer: {
     flex: 1,
     justifyContent: "center",
@@ -768,20 +660,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "rgba(29, 185, 84, 0.25)",
   },
-  spotifyOfflineTitle: {
-    color: "#fff",
-    fontSize: 22,
-    fontWeight: "800",
-    marginBottom: 8,
-    textAlign: "center",
-  },
-  spotifyOfflineSub: {
-    color: "#94a3b8",
-    fontSize: 13,
-    textAlign: "center",
-    lineHeight: 20,
-    marginBottom: 24,
-  },
+  spotifyOfflineTitle: { color: "#fff", fontSize: 22, fontWeight: "800", marginBottom: 8, textAlign: "center" },
+  spotifyOfflineSub: { color: "#94a3b8", fontSize: 13, textAlign: "center", lineHeight: 20, marginBottom: 24 },
   goToHubButton: {
     flexDirection: "row",
     alignItems: "center",
@@ -792,209 +672,45 @@ const styles = StyleSheet.create({
     borderRadius: 30,
     marginBottom: 16,
     elevation: 4,
-    shadowColor: "#1DB954",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
   },
-  goToHubButtonText: {
-    color: "#000",
-    fontWeight: "800",
-    fontSize: 15,
-  },
-  reconnectNotice: {
-    color: "#64748b",
-    fontSize: 11,
-    textAlign: "center",
-  },
-
-  languageChipsContainer: {
-    marginBottom: 16,
-  },
-  languageChips: {
-    flexDirection: "row",
-    gap: 8,
-    paddingHorizontal: 16,
-  },
-  chip: {
-    backgroundColor: "#282828",
-    borderRadius: 20,
-    height: 36,
-    justifyContent: "center",
-    marginRight: 8,
-  },
-  chipSelected: {
-    backgroundColor: "#1db954",
-  },
-  chipText: {
-    fontSize: 13,
-    lineHeight: 16,
-    color: "#b3b3b3",
-  },
-  chipTextSelected: {
-    color: "#000",
-    fontWeight: "bold",
-  },
-  section: {
-    marginBottom: 32,
-  },
-  sectionTitle: {
-    fontWeight: "bold",
-    marginBottom: 16,
-    paddingHorizontal: 16,
-    color: "#fff",
-    fontSize: 22,
-  },
-  horizontalList: {
-    paddingHorizontal: 16,
-  },
-  quickPicksGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    paddingHorizontal: 16,
-    gap: 12,
-  },
-  quickPickItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#282828",
-    borderRadius: 6,
-    overflow: "hidden",
-    height: 55,
-  },
-  quickPickImage: {
-    width: 55,
-    height: 55,
-    borderRadius: 6,
-  },
-  quickPickMeta: {
-    flex: 1,
-    paddingLeft: 12,
-    paddingRight: 12,
-  },
-  quickPickTitle: {
-    color: "#ffffff",
-    fontWeight: "600",
-    fontSize: 13,
-  },
-  skeletonQuickPick: {
-    backgroundColor: "#282828",
-  },
-  skeletonQuickPickImage: {
-    width: 60,
-    height: 60,
-    backgroundColor: "rgba(255, 255, 255, 0.1)",
-  },
-  skeletonQuickPickTitle: {
-    height: 12,
-    backgroundColor: "rgba(255, 255, 255, 0.1)",
-    borderRadius: 4,
-    width: "80%",
-  },
-  skeletonCard: {
-    width: 140,
-    marginRight: 12,
-  },
-  skeletonCardImage: {
-    width: 140,
-    height: 140,
-    borderRadius: 8,
-    backgroundColor: "rgba(255, 255, 255, 0.1)",
-    marginBottom: 12,
-  },
-  skeletonCardTitle: {
-    height: 14,
-    backgroundColor: "rgba(255, 255, 255, 0.1)",
-    borderRadius: 4,
-    marginBottom: 8,
-    width: "90%",
-  },
-  skeletonCardSubtitle: {
-    height: 12,
-    backgroundColor: "rgba(255, 255, 255, 0.1)",
-    borderRadius: 4,
-    width: "70%",
-  },
-  skeletonSongList: {
-    paddingHorizontal: 16,
-  },
-  skeletonSongItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: 12,
-  },
-  skeletonSongImage: {
-    width: 56,
-    height: 56,
-    borderRadius: 4,
-    backgroundColor: "rgba(255, 255, 255, 0.1)",
-    marginRight: 12,
-  },
-  skeletonSongInfo: {
-    flex: 1,
-  },
-  skeletonSongTitle: {
-    height: 14,
-    backgroundColor: "rgba(255, 255, 255, 0.1)",
-    borderRadius: 4,
-    marginBottom: 8,
-    width: "70%",
-  },
-  skeletonSongArtist: {
-    height: 12,
-    backgroundColor: "rgba(255, 255, 255, 0.1)",
-    borderRadius: 4,
-    width: "50%",
-  },
-  skeletonSectionTitle: {
-    height: 20,
-    backgroundColor: "rgba(255, 255, 255, 0.1)",
-    borderRadius: 4,
-    marginBottom: 16,
-    marginHorizontal: 16,
-    width: 160,
-  },
-  modalContainer: {
-    backgroundColor: "#282828",
-    marginHorizontal: 20,
-    padding: 24,
-    borderRadius: 12,
-  },
-  modalTitle: {
-    color: "#fff",
-    fontWeight: "bold",
-    marginBottom: 24,
-  },
-  settingSection: {
-    marginBottom: 24,
-  },
-  settingLabel: {
-    color: "#fff",
-    marginBottom: 16,
-    fontWeight: "600",
-  },
-  radioOption: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: 8,
-  },
-  radioLabel: {
-    color: "#fff",
-    fontSize: 15,
-    marginLeft: 8,
-  },
-  modalCloseButton: {
-    backgroundColor: "#1db954",
-    paddingVertical: 14,
-    borderRadius: 25,
-    alignItems: "center",
-    marginTop: 8,
-  },
-  modalCloseButtonText: {
-    color: "#000",
-    fontSize: 16,
-    fontWeight: "bold",
-  },
+  goToHubButtonText: { color: "#000", fontWeight: "800", fontSize: 15 },
+  reconnectNotice: { color: "#64748b", fontSize: 11, textAlign: "center" },
+  languageChipsContainer: { marginBottom: 16 },
+  languageChips: { flexDirection: "row", gap: 8, paddingHorizontal: 16 },
+  chip: { backgroundColor: "#282828", borderRadius: 20, height: 36, justifyContent: "center", marginRight: 8 },
+  chipSelected: { backgroundColor: "#1db954" },
+  chipText: { fontSize: 13, lineHeight: 16, color: "#b3b3b3" },
+  chipTextSelected: { color: "#000", fontWeight: "bold" },
+  section: { marginBottom: 32 },
+  sectionTitle: { fontWeight: "bold", marginBottom: 16, paddingHorizontal: 16, color: "#fff", fontSize: 22 },
+  horizontalList: { paddingHorizontal: 16 },
+  quickPicksGrid: { flexDirection: "row", flexWrap: "wrap", paddingHorizontal: 16, gap: 12 },
+  quickPickItem: { flexDirection: "row", alignItems: "center", backgroundColor: "#282828", borderRadius: 6, overflow: "hidden", height: 55 },
+  quickPickImage: { width: 55, height: 55, borderRadius: 6, backgroundColor: "#333" },
+  quickPickMeta: { flex: 1, paddingHorizontal: 12 },
+  quickPickTitle: { color: "#ffffff", fontWeight: "600", fontSize: 13 },
+  skeletonQuickPick: { backgroundColor: "#282828" },
+  skeletonQuickPickImage: { width: 60, height: 60, backgroundColor: "rgba(255, 255, 255, 0.1)" },
+  skeletonQuickPickTitle: { height: 12, backgroundColor: "rgba(255, 255, 255, 0.1)", borderRadius: 4, width: "80%" },
+  skeletonCard: { width: 140, marginRight: 12 },
+  skeletonCardImage: { width: 140, height: 140, borderRadius: 8, backgroundColor: "rgba(255, 255, 255, 0.1)", marginBottom: 12 },
+  skeletonCardTitle: { height: 14, backgroundColor: "rgba(255, 255, 255, 0.1)", borderRadius: 4, marginBottom: 8, width: "90%" },
+  skeletonCardSubtitle: { height: 12, backgroundColor: "rgba(255, 255, 255, 0.1)", borderRadius: 4, width: "70%" },
+  skeletonSongList: { paddingHorizontal: 16 },
+  skeletonSongItem: { flexDirection: "row", alignItems: "center", paddingVertical: 12 },
+  skeletonSongImage: { width: 56, height: 56, borderRadius: 4, backgroundColor: "rgba(255, 255, 255, 0.1)", marginRight: 12 },
+  skeletonSongInfo: { flex: 1 },
+  skeletonSongTitle: { height: 14, backgroundColor: "rgba(255, 255, 255, 0.1)", borderRadius: 4, marginBottom: 8, width: "70%" },
+  skeletonSongArtist: { height: 12, backgroundColor: "rgba(255, 255, 255, 0.1)", borderRadius: 4, width: "50%" },
+  skeletonSectionTitle: { height: 20, backgroundColor: "rgba(255, 255, 255, 0.1)", borderRadius: 4, marginBottom: 16, marginHorizontal: 16, width: 160 },
+  modalContainer: { backgroundColor: "#282828", marginHorizontal: 20, padding: 24, borderRadius: 12 },
+  modalTitle: { color: "#fff", fontWeight: "bold", marginBottom: 24 },
+  settingSection: { marginBottom: 24 },
+  settingLabel: { color: "#fff", marginBottom: 16, fontWeight: "600" },
+  radioOption: { flexDirection: "row", alignItems: "center", paddingVertical: 8 },
+  radioLabel: { color: "#fff", fontSize: 15, marginLeft: 8 },
+  modalCloseButton: { backgroundColor: "#1db954", paddingVertical: 14, borderRadius: 25, alignItems: "center", marginTop: 8 },
+  modalCloseButtonText: { color: "#000", fontSize: 16, fontWeight: "bold" },
 });
 
 export default HomeScreen;
