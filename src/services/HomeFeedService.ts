@@ -7,7 +7,21 @@ export interface PersonalizedFeedSection {
   songs: Models.Song[];
 }
 
+const FALLBACK_IMAGE = "https://daze.jayagarwal.online/assets/logo.png";
+
 export class HomeFeedService {
+  /**
+   * 🧹 Clean HTML Entities like &quot;, &#039;, &amp;
+   */
+  private static decodeHtml(text: string = ""): string {
+    return text
+      .replace(/&quot;/g, '"')
+      .replace(/&#039;/g, "'")
+      .replace(/&amp;/g, "&")
+      .replace(/&lt;/g, "<")
+      .replace(/&gt;/g, ">");
+  }
+
   static async getPersonalizedFeed(): Promise<PersonalizedFeedSection[]> {
     const sections: PersonalizedFeedSection[] = [];
 
@@ -15,28 +29,31 @@ export class HomeFeedService {
       const history = await historyService.getHistory();
 
       if (!history || history.length === 0) {
-        // Fallback to generic curated / trending for new users
         return this.getDefaultTrendingFeed();
       }
 
       // 1. "Jump Back In" (Recently Played)
-      const recentSongs = history.slice(0, 8).map((h) => h.song);
+      const recentSongs = history.slice(0, 8).map((h) => ({
+        ...h.song,
+        title: this.decodeHtml(h.song.title),
+      }));
+
       if (recentSongs.length > 0) {
         sections.push({
           title: "Jump Back In",
           subtitle: "Based on your recent listening",
-          songs: recentSongs,
+          songs: recentSongs as Models.Song[],
         });
       }
 
       // 2. Extract Top Artists
-      const artistCounts: Record<string, { count: number; artistId?: string; name: string }> = {};
+      const artistCounts: Record<string, { count: number; name: string }> = {};
       for (const entry of history) {
         const primaryArtist = entry.song.artists?.primary?.[0];
         if (primaryArtist?.name) {
           const name = primaryArtist.name;
           if (!artistCounts[name]) {
-            artistCounts[name] = { count: 0, artistId: primaryArtist.id, name };
+            artistCounts[name] = { count: 0, name };
           }
           artistCounts[name].count += 1;
         }
@@ -46,7 +63,7 @@ export class HomeFeedService {
         .sort((a, b) => b.count - a.count)
         .slice(0, 2);
 
-      // 3. "More Like [Top Song]" (Station based recommendation)
+      // 3. "More Like [Top Song]"
       const lastPlayedSong = history[0]?.song;
       if (lastPlayedSong?.id) {
         try {
@@ -54,14 +71,23 @@ export class HomeFeedService {
             songIds: [lastPlayedSong.id],
           });
           const { songs: recSongs } = await Song.getByStationId({ stationId, count: 10 });
-          
-          const filteredRecs = recSongs.filter((s) => s.id !== lastPlayedSong.id);
-          if (filteredRecs.length > 0) {
-            sections.push({
-              title: `More Like ${lastPlayedSong.title}`,
-              subtitle: "Recommended for you",
-              songs: filteredRecs,
-            });
+
+          if (Array.isArray(recSongs)) {
+            const filteredRecs = recSongs
+              .filter((s) => s.id !== lastPlayedSong.id)
+              .map((s) => ({
+                ...s,
+                title: this.decodeHtml(s.title),
+              }));
+
+            if (filteredRecs.length > 0) {
+              const cleanTitle = this.decodeHtml(lastPlayedSong.title);
+              sections.push({
+                title: `More Like ${cleanTitle}`,
+                subtitle: "Recommended for you",
+                songs: filteredRecs as Models.Song[],
+              });
+            }
           }
         } catch (e) {
           console.warn("[HomeFeedService] Station rec error:", e);
@@ -74,10 +100,15 @@ export class HomeFeedService {
         try {
           const searchRes = await Song.search({ query: topArtistName, page: 1, limit: 10 });
           if (searchRes.songs && searchRes.songs.length > 0) {
+            const cleanArtistSongs = searchRes.songs.map((s) => ({
+              ...s,
+              title: this.decodeHtml(s.title),
+            }));
+
             sections.push({
               title: `Best of ${topArtistName}`,
               subtitle: `Because you love ${topArtistName}`,
-              songs: searchRes.songs,
+              songs: cleanArtistSongs as Models.Song[],
             });
           }
         } catch (e) {
@@ -95,11 +126,16 @@ export class HomeFeedService {
   private static async getDefaultTrendingFeed(): Promise<PersonalizedFeedSection[]> {
     try {
       const searchRes = await Song.search({ query: "Trending Hindi", page: 1, limit: 12 });
+      const cleanSongs = (searchRes.songs || []).map((s) => ({
+        ...s,
+        title: this.decodeHtml(s.title),
+      }));
+
       return [
         {
           title: "Trending Now",
           subtitle: "Top charts today",
-          songs: searchRes.songs || [],
+          songs: cleanSongs as Models.Song[],
         },
       ];
     } catch {
