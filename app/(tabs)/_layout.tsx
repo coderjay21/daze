@@ -5,7 +5,8 @@ import { useUIStore } from "@/stores/uiStore";
 import { sizes } from "@/utils";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import { Tabs, useLocalSearchParams } from "expo-router";
+import { Tabs, useLocalSearchParams, router } from "expo-router";
+import * as Linking from "expo-linking";
 import React, { useEffect } from "react";
 import { StyleSheet, Text, View } from "react-native";
 
@@ -18,6 +19,36 @@ export default function TabLayout() {
       setFullPlayerVisible(true);
     }
   }, [showPlayer, setFullPlayerVisible]);
+
+  // 🔗 Incoming Share & Deep Linking Handler (Instagram Reels / Text share)
+  useEffect(() => {
+    const handleUrl = (event: { url: string }) => {
+      const url = event.url;
+      if (!url) return;
+
+      // Handle Instagram / Social links shared to Daze
+      if (
+        url.includes("instagram.com/reel/") ||
+        url.includes("instagram.com/p/") ||
+        url.includes("instagram.com/stories/")
+      ) {
+        router.push({
+          pathname: "/search" as any,
+          params: { sharedUrl: url },
+        });
+      }
+    };
+
+    // 1. Listen for intent while app is open/in background
+    const sub = Linking.addEventListener("url", handleUrl);
+
+    // 2. Check if app was opened via cold start share intent
+    Linking.getInitialURL().then((url) => {
+      if (url) handleUrl({ url });
+    });
+
+    return () => sub.remove();
+  }, []);
 
   return (
     <View style={styles.root}>
