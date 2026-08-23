@@ -13,7 +13,7 @@ import { StyleSheet, Text, View } from "react-native";
 export default function TabLayout() {
   const { isFullPlayerVisible, setFullPlayerVisible } = useUIStore();
   const { showPlayer } = useLocalSearchParams<{ showPlayer?: string }>();
-  const isNavigating = useRef(false);
+  const isNavigatingRef = useRef(false);
 
   useEffect(() => {
     if (showPlayer === "true") {
@@ -24,29 +24,34 @@ export default function TabLayout() {
   // 🔗 Incoming Instagram Share Intent Handler
   useEffect(() => {
     const handleIncomingUrl = (incomingUrl: string | null) => {
-      if (!incomingUrl || isNavigating.current) return;
+      if (!incomingUrl || isNavigatingRef.current) return;
 
       const raw = decodeURIComponent(incomingUrl);
+
+      // Extract exact URL from text
+      const urlMatch = raw.match(/https?:\/\/[^\s]+/);
+      const targetUrl = urlMatch ? urlMatch[0] : raw;
+
       const isExternalLink =
-        raw.includes("instagram.com") ||
-        raw.includes("/reel/") ||
-        raw.includes("/p/") ||
-        raw.startsWith("http");
+        targetUrl.includes("instagram.com") ||
+        targetUrl.includes("/reel/") ||
+        targetUrl.includes("/p/") ||
+        targetUrl.startsWith("http");
 
       if (isExternalLink) {
-        isNavigating.current = true;
+        isNavigatingRef.current = true;
 
-        // Tabs container fully mount hone ke baad direct search route push karo
+        // Tabs completely load hone ke baad switch trigger karo
         setTimeout(() => {
-          router.navigate({
-            pathname: "/(tabs)/search" as any,
-            params: { sharedUrl: raw },
+          router.push({
+            pathname: "/search" as any,
+            params: { sharedUrl: targetUrl },
           });
 
           setTimeout(() => {
-            isNavigating.current = false;
-          }, 2000);
-        }, 500);
+            isNavigatingRef.current = false;
+          }, 1500);
+        }, 400);
       }
     };
 
