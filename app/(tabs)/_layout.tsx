@@ -13,7 +13,7 @@ import { StyleSheet, Text, View } from "react-native";
 export default function TabLayout() {
   const { isFullPlayerVisible, setFullPlayerVisible } = useUIStore();
   const { showPlayer } = useLocalSearchParams<{ showPlayer?: string }>();
-  const isHandlingShare = useRef(false);
+  const isNavigating = useRef(false);
 
   useEffect(() => {
     if (showPlayer === "true") {
@@ -21,47 +21,46 @@ export default function TabLayout() {
     }
   }, [showPlayer, setFullPlayerVisible]);
 
-  // 🔗 Incoming Share & Deep Linking Handler (Instagram Reels / Text share)
+  // 🔗 Incoming Instagram Share Intent Handler
   useEffect(() => {
-    const handleIncomingData = (rawUrl: string | null) => {
-      if (!rawUrl || isHandlingShare.current) return;
+    const handleIncomingUrl = (incomingUrl: string | null) => {
+      if (!incomingUrl || isNavigating.current) return;
 
-      const decoded = decodeURIComponent(rawUrl);
-      const isInstagram =
-        decoded.includes("instagram.com") ||
-        decoded.includes("/reel/") ||
-        decoded.includes("/p/") ||
-        decoded.includes("/stories/");
+      const raw = decodeURIComponent(incomingUrl);
+      const isExternalLink =
+        raw.includes("instagram.com") ||
+        raw.includes("/reel/") ||
+        raw.includes("/p/") ||
+        raw.startsWith("http");
 
-      if (isInstagram || decoded.startsWith("http")) {
-        isHandlingShare.current = true;
+      if (isExternalLink) {
+        isNavigating.current = true;
 
-        // ⏱️ Router initialization buffer taaki tabs mount hone ke baad navigate ho
+        // Tabs container fully mount hone ke baad direct search route push karo
         setTimeout(() => {
-          router.replace({
-            pathname: "/search" as any,
-            params: { sharedUrl: decoded },
+          router.navigate({
+            pathname: "/(tabs)/search" as any,
+            params: { sharedUrl: raw },
           });
 
-          // Reset flag after transition
           setTimeout(() => {
-            isHandlingShare.current = false;
-          }, 1500);
-        }, 350);
+            isNavigating.current = false;
+          }, 2000);
+        }, 500);
       }
     };
 
-    // 1. App cold start share listener
+    // 1. Cold Start Listener
     Linking.getInitialURL().then((url) => {
-      if (url) handleIncomingData(url);
+      if (url) handleIncomingUrl(url);
     });
 
-    // 2. App background share listener
-    const sub = Linking.addEventListener("url", (event) => {
-      if (event?.url) handleIncomingData(event.url);
+    // 2. Background Listener
+    const subscription = Linking.addEventListener("url", (event) => {
+      if (event?.url) handleIncomingUrl(event.url);
     });
 
-    return () => sub.remove();
+    return () => subscription.remove();
   }, []);
 
   return (
@@ -169,6 +168,7 @@ export default function TabLayout() {
           }}
         />
 
+        {/* 4th Tab: Offline Hub */}
         <Tabs.Screen
           name="offline-hub"
           options={{
