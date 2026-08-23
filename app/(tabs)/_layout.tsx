@@ -7,12 +7,13 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { Tabs, useLocalSearchParams, router } from "expo-router";
 import * as Linking from "expo-linking";
-import React, { useEffect } from "react";
+import React, { useEffect, useRef } from "react";
 import { StyleSheet, Text, View } from "react-native";
 
 export default function TabLayout() {
   const { isFullPlayerVisible, setFullPlayerVisible } = useUIStore();
   const { showPlayer } = useLocalSearchParams<{ showPlayer?: string }>();
+  const isHandlingShare = useRef(false);
 
   useEffect(() => {
     if (showPlayer === "true") {
@@ -22,29 +23,42 @@ export default function TabLayout() {
 
   // 🔗 Incoming Share & Deep Linking Handler (Instagram Reels / Text share)
   useEffect(() => {
-    const handleUrl = (event: { url: string }) => {
-      const url = event.url;
-      if (!url) return;
+    const handleIncomingData = (rawUrl: string | null) => {
+      if (!rawUrl || isHandlingShare.current) return;
 
-      // Handle Instagram / Social links shared to Daze
-      if (
-        url.includes("instagram.com/reel/") ||
-        url.includes("instagram.com/p/") ||
-        url.includes("instagram.com/stories/")
-      ) {
-        router.push({
-          pathname: "/search" as any,
-          params: { sharedUrl: url },
-        });
+      const decoded = decodeURIComponent(rawUrl);
+      const isInstagram =
+        decoded.includes("instagram.com") ||
+        decoded.includes("/reel/") ||
+        decoded.includes("/p/") ||
+        decoded.includes("/stories/");
+
+      if (isInstagram || decoded.startsWith("http")) {
+        isHandlingShare.current = true;
+
+        // ⏱️ Router initialization buffer taaki tabs mount hone ke baad navigate ho
+        setTimeout(() => {
+          router.replace({
+            pathname: "/search" as any,
+            params: { sharedUrl: decoded },
+          });
+
+          // Reset flag after transition
+          setTimeout(() => {
+            isHandlingShare.current = false;
+          }, 1500);
+        }, 350);
       }
     };
 
-    // 1. Listen for intent while app is open/in background
-    const sub = Linking.addEventListener("url", handleUrl);
-
-    // 2. Check if app was opened via cold start share intent
+    // 1. App cold start share listener
     Linking.getInitialURL().then((url) => {
-      if (url) handleUrl({ url });
+      if (url) handleIncomingData(url);
+    });
+
+    // 2. App background share listener
+    const sub = Linking.addEventListener("url", (event) => {
+      if (event?.url) handleIncomingData(event.url);
     });
 
     return () => sub.remove();
@@ -155,7 +169,6 @@ export default function TabLayout() {
           }}
         />
 
-        {/* 4th Tab: Offline Hub */}
         <Tabs.Screen
           name="offline-hub"
           options={{
@@ -215,7 +228,6 @@ export default function TabLayout() {
         onClose={() => setFullPlayerVisible(false)}
       />
 
-      {/* Compulsory Force Update Modal */}
       <ForceUpdateModal />
     </View>
   );
