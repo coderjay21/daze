@@ -1,8 +1,10 @@
+import React, { useMemo } from "react";
 import SearchScreen from "@/screens/Search";
 import { router, useLocalSearchParams } from "expo-router";
 
 export default function SearchTab() {
-  const { sharedUrl } = useLocalSearchParams<{ sharedUrl?: string }>();
+  const params = useLocalSearchParams<{ sharedUrl?: string }>();
+  const sharedUrl = useMemo(() => params.sharedUrl, [params.sharedUrl]);
 
   return (
     <SearchScreen
