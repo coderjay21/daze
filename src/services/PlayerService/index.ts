@@ -27,9 +27,20 @@ export const setSevenSongsCallback = (callback: () => void) => {
   onSevenSongsCallback = callback;
 };
 
+export interface OfflineTrackInput {
+  id: string;
+  title: string;
+  artist: string;
+  artwork: string;
+  url: string;
+}
+
 export interface IPlayerService {
   play(song: Models.Song, providedQueue?: Models.Song[]): Promise<void>;
-  playTrack(track: { id: string; title: string; artist: string; artwork: string; url: string }): Promise<void>;
+  playTrack(
+    track: OfflineTrackInput,
+    providedQueue?: OfflineTrackInput[]
+  ): Promise<void>;
   resume(): Promise<void>;
   pause(): Promise<void>;
   togglePlayPause(): Promise<void>;
@@ -70,20 +81,11 @@ export class PlayerService implements IPlayerService {
       if (!track) return;
 
       songPlayCounter += 1;
-      if (songPlayCounter === 7) {
-        if (onSevenSongsCallback) {
-          onSevenSongsCallback();
-        }
+      if (songPlayCounter === 7 && onSevenSongsCallback) {
+        onSevenSongsCallback();
       }
 
-      // Auto-extend dynamic recommendations as track approaches queue tail
-      const state = await TrackPlayer.getState();
-      const queue = await TrackPlayer.getActualQueue();
-
-      if (state.currentIndex >= queue.length - 2) {
-        await this.maybeExtendQueue(track.id);
-      }
-
+      // 🧠 Feed Taste Engine & Learning Matrix
       TasteEngineService.onSongPlayed({
         id: track.id,
         title: track.title || "",
@@ -92,6 +94,7 @@ export class PlayerService implements IPlayerService {
         downloadUrl: track.url,
       });
 
+      // Handle history save only if payload exists
       if (track.extraPayload) {
         try {
           await historyService.addToHistory(track.extraPayload as unknown as Models.Song, 0);
@@ -99,15 +102,32 @@ export class PlayerService implements IPlayerService {
           console.error("[PlayerService] addToHistory error:", error);
         }
       }
+
+      // Auto-extend dynamic recommendations if approaching end of online queue
+      try {
+        const state = await TrackPlayer.getState();
+        const queue = await TrackPlayer.getActualQueue();
+
+        if (queue.length > 0 && state.currentIndex >= queue.length - 2) {
+          // Avoid extending offline-only local files with online SDK fetch
+          const isOfflineItem = track.url.startsWith("file://") || track.url.startsWith("nitro-download://");
+          if (!isOfflineItem) {
+            await this.maybeExtendQueue(track.id);
+          }
+        }
+      } catch (e) {
+        console.warn("[PlayerService] Queue check warning:", e);
+      }
     });
 
-    // Fallback trigger if queue reaches the end
+    // Fallback trigger if queue reaches the very end
     TrackPlayer.onPlaybackEnd(async () => {
       const state = await TrackPlayer.getState();
       const queue = await TrackPlayer.getActualQueue();
-      if (state.currentIndex >= queue.length - 1) {
+
+      if (queue.length > 0 && state.currentIndex >= queue.length - 1) {
         const lastTrack = queue[queue.length - 1];
-        if (lastTrack?.id) {
+        if (lastTrack?.id && !lastTrack.url.startsWith("file://")) {
           const extended = await this.maybeExtendQueue(lastTrack.id);
           if (extended) {
             await TrackPlayer.skipToNext();
@@ -131,7 +151,6 @@ export class PlayerService implements IPlayerService {
           return true;
         });
 
-        // Automatically append radio recommendations if queue is short
         if (filtered.length < 5) {
           const recs = await this.fetchRecommendations(song.id);
           fullQueue = [song, ...filtered, ...recs.slice(0, 15)];
@@ -139,7 +158,6 @@ export class PlayerService implements IPlayerService {
           fullQueue = [song, ...filtered];
         }
       } else {
-        // Spotify Infinite Radio Mode: Pre-load matching station tracks
         const recs = await this.fetchRecommendations(song.id);
         fullQueue = [song, ...recs.slice(0, 15)];
       }
@@ -176,27 +194,39 @@ export class PlayerService implements IPlayerService {
         artwork,
         downloadUrl: validTracks[0]?.url,
       });
-
     } catch (error) {
       console.error("[Player] Play failed:", error);
     }
   }
 
-  async playTrack(track: { id: string; title: string; artist: string; artwork: string; url: string }): Promise<void> {
+  /**
+   * ⚡ Continuous Offline Hub Playback Implementation
+   */
+  async playTrack(
+    track: OfflineTrackInput,
+    providedQueue?: OfflineTrackInput[]
+  ): Promise<void> {
     try {
-      const trackItem: TrackItem = {
-        id: track.id,
-        url: track.url,
-        title: track.title,
-        artist: track.artist,
-        album: "Offline Hub",
-        artwork: track.artwork || null,
-        duration: 0,
-        extraPayload: { id: track.id, title: track.title, artist: track.artist } as any,
-      };
+      const queueList = providedQueue && providedQueue.length > 0 ? providedQueue : [track];
 
-      const playlistId = await PlayerQueue.createPlaylist(track.title || "Offline Playing", "", track.artwork || undefined);
-      await PlayerQueue.addTracksToPlaylist(playlistId, [trackItem]);
+      const trackItems: TrackItem[] = queueList.map((t) => ({
+        id: t.id,
+        url: t.url,
+        title: t.title || "Unknown",
+        artist: t.artist || "Unknown",
+        album: "Offline Hub",
+        artwork: t.artwork || null,
+        duration: 0,
+        extraPayload: { id: t.id, title: t.title, artist: t.artist } as any,
+      }));
+
+      const playlistId = await PlayerQueue.createPlaylist(
+        "Offline Hub Playlist",
+        "",
+        track.artwork || undefined
+      );
+
+      await PlayerQueue.addTracksToPlaylist(playlistId, trackItems);
       await PlayerQueue.loadPlaylist(playlistId);
       await TrackPlayer.playSong(track.id, playlistId);
       await TrackPlayer.play();
