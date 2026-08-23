@@ -16,13 +16,13 @@ import { OfflineHubService } from "@/services/OfflineHubService";
 import { playerService } from "@/services/PlayerService";
 
 const QUOTA_OPTIONS = [250, 500, 1000];
+const FALLBACK_ARTWORK = "https://daze.jayagarwal.online/assets/logo.png";
 
 export default function OfflineHubScreen() {
   const hasConfigured = useOfflineHubStore((s) => s.hasConfigured);
   const maxQuotaMB = useOfflineHubStore((s) => s.maxQuotaMB) || 250;
   const cachedTracks = useOfflineHubStore((s) => s.cachedTracks) || [];
   
-  // ✅ 1. Default Tab 'all' selected
   const activeMood = useOfflineHubStore((s) => s.activeMood) || "all";
   const setQuota = useOfflineHubStore((s) => s.setQuota);
   const setHasConfigured = useOfflineHubStore((s) => s.setHasConfigured);
@@ -34,8 +34,6 @@ export default function OfflineHubScreen() {
 
   const usedBytes = cachedTracks.reduce((acc, t) => acc + (Number(t?.fileSizeBytes) || 0), 0);
   const usedMB = (usedBytes / (1024 * 1024)).toFixed(1);
-  
-  // ✅ 2. Progress bar capped at 100% max
   const usedPercent = Math.min(100, Math.max(0, (Number(usedMB) / maxQuotaMB) * 100));
 
   const filteredTracks = cachedTracks.filter((t) => {
@@ -49,6 +47,24 @@ export default function OfflineHubScreen() {
       setRefreshing(false);
     }, 600);
   }, []);
+
+  // 🔄 Continuous Playback Queue Trigger
+  const handlePlayFromHub = (startIndex: number) => {
+    if (!filteredTracks.length) return;
+
+    const queue = filteredTracks.map((t) => ({
+      id: t.id,
+      title: t.title || "Unknown",
+      artist: t.artist || "Unknown",
+      artwork: t.artwork || FALLBACK_ARTWORK,
+      url: t.localUri,
+    }));
+
+    const selectedTrack = queue[startIndex];
+    if (selectedTrack) {
+      void playerService.playTrack(selectedTrack, queue);
+    }
+  };
 
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
@@ -79,7 +95,6 @@ export default function OfflineHubScreen() {
         </View>
       </View>
 
-      {/* ✅ Filter Chips (Default 'All' Selected) */}
       <View style={styles.moodContainer}>
         {[
           { key: "all", label: "⚡ All Songs" },
@@ -128,21 +143,13 @@ export default function OfflineHubScreen() {
             </Text>
           </View>
         }
-        renderItem={({ item }) => (
+        renderItem={({ item, index }) => (
           <TouchableOpacity
             style={styles.trackRow}
-            onPress={() =>
-              void playerService.playTrack({
-                id: item.id,
-                title: item.title,
-                artist: item.artist,
-                artwork: item.artwork,
-                url: item.localUri,
-              })
-            }
+            onPress={() => handlePlayFromHub(index)}
           >
             <Image
-              source={{ uri: item.artwork || "https://daze.jayagarwal.online/assets/logo.png" }}
+              source={{ uri: item.artwork || FALLBACK_ARTWORK }}
               style={styles.artwork}
             />
             <View style={styles.trackInfo}>
@@ -294,7 +301,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     marginBottom: 8,
   },
-  artwork: { width: 44, height: 44, borderRadius: 6 },
+  artwork: { width: 44, height: 44, borderRadius: 6, backgroundColor: "#282828" },
   trackInfo: { flex: 1, marginLeft: 12 },
   trackTitle: { color: "#fff", fontSize: 14, fontWeight: "600" },
   trackArtist: { color: "#888", fontSize: 12, marginTop: 2 },
