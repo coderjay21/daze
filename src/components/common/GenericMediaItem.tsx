@@ -4,13 +4,16 @@ import React, { memo } from "react";
 import { StyleSheet, TouchableOpacity, View } from "react-native";
 import { Text } from "react-native-paper";
 
-export type MediaType = "album" | "artist" | "playlist" | "collection";
+export type MediaType = "album" | "artist" | "playlist" | "collection" | "song";
 
 export interface MediaData {
   id: string;
   title?: string;
   name?: string;
   subtitle?: string;
+  artist?: string;
+  image?: string;
+  artwork?: string;
   images?: Array<{ url: string; quality?: string }>;
 }
 
@@ -22,14 +25,32 @@ interface GenericMediaItemProps {
   testID?: string;
 }
 
+const FALLBACK_ARTWORK = "https://daze.jayagarwal.online/assets/logo.png";
+
+const decodeHtml = (text: string = ""): string => {
+  return text
+    .replace(/&quot;/g, '"')
+    .replace(/&#039;/g, "'")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">");
+};
+
 const GenericMediaItem: React.FC<GenericMediaItemProps> = memo(
   ({ data, type, onPress, horizontal = false, testID }) => {
-    const getTitle = (): string => {
-      return data.title || data.name || "Unknown";
-    };
+    const rawTitle = data.title || data.name || "Unknown";
+    const title = decodeHtml(rawTitle);
 
-    const imageUrl = data.images?.[2]?.url;
-    const title = getTitle();
+    // 🎯 Robust Image Resolver across all Saavn SDK formats
+    const resolvedImageUri =
+      data.image ||
+      data.artwork ||
+      data.images?.[2]?.url ||
+      data.images?.[1]?.url ||
+      data.images?.[0]?.url ||
+      FALLBACK_ARTWORK;
+
+    const subtitle = data.subtitle || data.artist;
     const isCircular = type === "artist";
 
     const imageStyle = [
@@ -46,10 +67,12 @@ const GenericMediaItem: React.FC<GenericMediaItemProps> = memo(
           testID={testID}
         >
           <Image
-            source={{ uri: imageUrl }}
+            source={{ uri: resolvedImageUri }}
+            placeholder={{ uri: FALLBACK_ARTWORK }}
             style={imageStyle}
             contentFit="cover"
             transition={200}
+            cachePolicy="memory-disk"
           />
           <Text
             variant="bodyMedium"
@@ -58,7 +81,7 @@ const GenericMediaItem: React.FC<GenericMediaItemProps> = memo(
           >
             {title}
           </Text>
-          {data.subtitle && (
+          {subtitle && (
             <Text
               variant="bodySmall"
               numberOfLines={1}
@@ -67,7 +90,7 @@ const GenericMediaItem: React.FC<GenericMediaItemProps> = memo(
                 { color: theme.colors.onSurfaceVariant },
               ]}
             >
-              {data.subtitle}
+              {decodeHtml(subtitle)}
             </Text>
           )}
         </TouchableOpacity>
@@ -82,16 +105,18 @@ const GenericMediaItem: React.FC<GenericMediaItemProps> = memo(
         testID={testID}
       >
         <Image
-          source={{ uri: imageUrl }}
+          source={{ uri: resolvedImageUri }}
+          placeholder={{ uri: FALLBACK_ARTWORK }}
           style={imageStyle}
           contentFit="cover"
           transition={200}
+          cachePolicy="memory-disk"
         />
         <View style={styles.textContainer}>
           <Text variant="bodyMedium" numberOfLines={1} style={styles.title}>
             {title}
           </Text>
-          {data.subtitle && (
+          {subtitle && (
             <Text
               variant="bodySmall"
               numberOfLines={1}
@@ -100,7 +125,7 @@ const GenericMediaItem: React.FC<GenericMediaItemProps> = memo(
                 { color: theme.colors.onSurfaceVariant },
               ]}
             >
-              {data.subtitle}
+              {decodeHtml(subtitle)}
             </Text>
           )}
         </View>
