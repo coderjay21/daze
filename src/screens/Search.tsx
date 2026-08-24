@@ -164,30 +164,49 @@ const SearchScreen: React.FC<SearchScreenProps> = ({
     loadRecentSearches();
   }, []);
 
-  // 🚀 Handle Instagram Reel / External Shared Link
+  // 🚀 Resilient Instagram Shared Intent Resolver with Auto-Dismiss & Fallback
   useEffect(() => {
     if (!sharedUrl) return;
 
     let isMounted = true;
     setIdentifyingReel(true);
 
+    // ⏱️ 6-second safety net taaki screen loader kabhi freeze na ho
+    const safetyTimeout = setTimeout(() => {
+      if (isMounted) {
+        setIdentifyingReel(false);
+      }
+    }, 6000);
+
     ReelAudioService.resolveSongFromInstagram(sharedUrl)
-      .then((matchedSong) => {
+      .then(async (matchedSong) => {
         if (!isMounted) return;
+        clearTimeout(safetyTimeout);
         setIdentifyingReel(false);
 
         if (matchedSong) {
           setSearchQuery(matchedSong.title);
           executeSearch(matchedSong.title, null);
-          playSong(matchedSong);
+          await playSong(matchedSong);
+        } else {
+          // Fallback: Agar auto-match nahi hua toh raw share text ko search box me dalo
+          const cleanText = sharedUrl.replace(/https?:\/\/\S+/g, "").trim();
+          if (cleanText.length >= 2) {
+            setSearchQuery(cleanText);
+            executeSearch(cleanText, null);
+          }
         }
       })
       .catch(() => {
-        if (isMounted) setIdentifyingReel(false);
+        if (isMounted) {
+          clearTimeout(safetyTimeout);
+          setIdentifyingReel(false);
+        }
       });
 
     return () => {
       isMounted = false;
+      clearTimeout(safetyTimeout);
     };
   }, [sharedUrl, playSong, executeSearch, setSearchQuery]);
 
