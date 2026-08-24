@@ -2,61 +2,50 @@ import { Song, Models } from "@saavn-labs/sdk";
 
 export class ReelAudioService {
   /**
-   * 🔍 Extract clean query from Instagram URL or shared string
+   * 🔍 Extract Song Title from Instagram URL using HTML Meta tags
    */
-  static extractCleanKeywords(input: string): string {
-    if (!input) return "";
-
-    // Remove tracking query strings (?igsh=..., etc.)
-    const cleanUrl = input.split("?")[0].trim();
-
-    // Extract Reel ID / Slug
-    const match = cleanUrl.match(/(?:reel|p)\/([a-zA-Z0-9_-]+)/);
-    if (match && match[1]) {
-      return match[1];
-    }
-
-    return input.replace(/https?:\/\/\S+/g, "").trim();
-  }
-
-  /**
-   * ⚡ Identify and find song from Saavn catalog
-   */
-  static async resolveSongFromInstagram(sharedText: string): Promise<Models.Song | null> {
+  static async resolveSongFromInstagram(rawInput: string): Promise<Models.Song | null> {
     try {
-      // 1. Check if Instagram oEmbed provides Title
-      const cleanUrlMatch = sharedText.match(/https?:\/\/(?:www\.)?instagram\.com\/(?:reel|p)\/[a-zA-Z0-9_-]+/);
-      let searchTerm = "";
+      if (!rawInput) return null;
 
-      if (cleanUrlMatch) {
+      // Extract raw link from share text
+      const urlMatch = rawInput.match(/https?:\/\/(?:www\.)?instagram\.com\/(?:reel|p)\/([a-zA-Z0-9_-]+)/);
+      let queryTitle = "";
+
+      if (urlMatch) {
+        const reelUrl = urlMatch[0];
         try {
-          const res = await fetch(`https://api.instagram.com/oembed/?url=${encodeURIComponent(cleanUrlMatch[0])}`);
+          // Fetch open graph data from public endpoint
+          const res = await fetch(`https://api.instagram.com/oembed/?url=${encodeURIComponent(reelUrl)}`);
           if (res.ok) {
             const data = await res.json();
             if (data?.title) {
-              searchTerm = data.title;
+              queryTitle = data.title;
             }
           }
         } catch (e) {
-          console.warn("[ReelAudioService] oEmbed fallback:", e);
+          console.warn("[ReelAudioService] oEmbed fetch failed:", e);
         }
+      } else {
+        // Direct text without URL
+        queryTitle = rawInput.replace(/https?:\/\/\S+/g, "").trim();
       }
 
-      if (!searchTerm) {
-        searchTerm = this.extractCleanKeywords(sharedText);
+      if (!queryTitle || queryTitle.length < 2) {
+        return null;
       }
 
-      // Sanitize search query
-      const sanitized = searchTerm
+      // Clean hashtags and emojis from caption
+      const sanitized = queryTitle
         .replace(/#\w+/g, "")
         .replace(/[^\p{L}\p{N}\s]/gu, " ")
         .replace(/\s+/g, " ")
         .trim();
 
-      const finalQuery = sanitized.length > 2 ? sanitized : "Trending Hindi";
+      if (!sanitized) return null;
 
       const searchRes = await Song.search({
-        query: finalQuery.slice(0, 35),
+        query: sanitized.slice(0, 40),
         page: 1,
         limit: 5,
       });
@@ -67,7 +56,7 @@ export class ReelAudioService {
 
       return null;
     } catch (err) {
-      console.error("[ReelAudioService] Search error:", err);
+      console.error("[ReelAudioService] Resolve error:", err);
       return null;
     }
   }
