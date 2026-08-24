@@ -6,14 +6,14 @@ import { sizes } from "@/utils";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { Tabs, useLocalSearchParams, router } from "expo-router";
-import * as Linking from "expo-linking";
+import ReceiveSharingIntent from "expo-receive-sharing-intent";
 import React, { useEffect, useRef } from "react";
 import { StyleSheet, Text, View } from "react-native";
 
 export default function TabLayout() {
   const { isFullPlayerVisible, setFullPlayerVisible } = useUIStore();
   const { showPlayer } = useLocalSearchParams<{ showPlayer?: string }>();
-  const isNavigatingRef = useRef(false);
+  const isNavigating = useRef(false);
 
   useEffect(() => {
     if (showPlayer === "true") {
@@ -21,51 +21,37 @@ export default function TabLayout() {
     }
   }, [showPlayer, setFullPlayerVisible]);
 
-  // 🔗 Incoming Instagram Share Intent Handler
+  // 🎯 True Android SEND Intent Listener
   useEffect(() => {
-    const handleIncomingUrl = (incomingUrl: string | null) => {
-      if (!incomingUrl || isNavigatingRef.current) return;
+    ReceiveSharingIntent.getReceivedFiles(
+      (files: any) => {
+        if (!files || files.length === 0 || isNavigating.current) return;
 
-      const raw = decodeURIComponent(incomingUrl);
+        const sharedText = files[0]?.text || files[0]?.weblink || files[0]?.contentUri;
+        console.log("🔥 [Native Share Intent Received]:", sharedText);
 
-      // Extract exact URL from text
-      const urlMatch = raw.match(/https?:\/\/[^\s]+/);
-      const targetUrl = urlMatch ? urlMatch[0] : raw;
-
-      const isExternalLink =
-        targetUrl.includes("instagram.com") ||
-        targetUrl.includes("/reel/") ||
-        targetUrl.includes("/p/") ||
-        targetUrl.startsWith("http");
-
-      if (isExternalLink) {
-        isNavigatingRef.current = true;
-
-        // Tabs completely load hone ke baad switch trigger karo
-        setTimeout(() => {
-          router.push({
-            pathname: "/search" as any,
-            params: { sharedUrl: targetUrl },
-          });
-
+        if (sharedText) {
+          isNavigating.current = true;
           setTimeout(() => {
-            isNavigatingRef.current = false;
-          }, 1500);
-        }, 400);
-      }
+            router.navigate({
+              pathname: "/(tabs)/search" as any,
+              params: { sharedUrl: sharedText },
+            });
+            setTimeout(() => {
+              isNavigating.current = false;
+            }, 1500);
+          }, 350);
+        }
+      },
+      (error: any) => {
+        console.warn("[ReceiveSharingIntent Error]:", error);
+      },
+      "daze"
+    );
+
+    return () => {
+      ReceiveSharingIntent.clearReceivedFiles();
     };
-
-    // 1. Cold Start Listener
-    Linking.getInitialURL().then((url) => {
-      if (url) handleIncomingUrl(url);
-    });
-
-    // 2. Background Listener
-    const subscription = Linking.addEventListener("url", (event) => {
-      if (event?.url) handleIncomingUrl(event.url);
-    });
-
-    return () => subscription.remove();
   }, []);
 
   return (
@@ -173,7 +159,6 @@ export default function TabLayout() {
           }}
         />
 
-        {/* 4th Tab: Offline Hub */}
         <Tabs.Screen
           name="offline-hub"
           options={{
