@@ -6,7 +6,12 @@ import { sizes } from "@/utils";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { Tabs, useLocalSearchParams, router } from "expo-router";
-import ReceiveSharingIntent from "expo-receive-sharing-intent";
+// ❌ Puraana (isko hatao):
+// import ReceiveSharingIntent from "expo-receive-sharing-intent";
+
+// ✅ Naya (yeh lagao):
+import ReceiveSharingIntent from "react-native-receive-sharing-intent";
+
 import React, { useEffect, useRef } from "react";
 import { StyleSheet, Text, View } from "react-native";
 
