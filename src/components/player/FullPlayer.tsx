@@ -1,40 +1,42 @@
 import { useLibraryStore } from "@/stores";
 import {
-    useCurrentSong,
-    useDominantColor,
-    useDuration,
-    usePlaybackStatus,
-    usePlayerActions,
-    useProgress,
-    useRepeatMode,
-    useSetDominantColor,
-    useUpcomingTracks,
+  useCurrentSong,
+  useDominantColor,
+  useDuration,
+  usePlaybackStatus,
+  usePlayerActions,
+  useProgress,
+  useRepeatMode,
+  useSetDominantColor,
+  useUpcomingTracks,
 } from "@/stores/playerStore";
 import {
-    createColorGradient,
-    extractAndUpdateColor,
-    formatTime,
-    theme,
+  createColorGradient,
+  extractAndUpdateColor,
+  formatTime,
+  theme,
 } from "@/utils";
-import { Models } from "@saavn-labs/sdk";
+import { Models, Song } from "@saavn-labs/sdk";
 
 import { TrackContextMenu } from "../common";
 import TrackItem from "../items/TrackItem";
 import LoadingHeartbeat from "./LoadingHeartBeat";
+import { LyricStoryModal } from "./LyricStoryModal";
 
-import { MaterialIcons } from "@expo/vector-icons";
+import { MaterialCommunityIcons, MaterialIcons } from "@expo/vector-icons";
 import Slider from "@react-native-community/slider";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
-    Animated,
-    Dimensions,
-    FlatList,
-    Modal,
-    StyleSheet,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Animated,
+  Dimensions,
+  FlatList,
+  Modal,
+  StyleSheet,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { Text } from "react-native-paper";
 
@@ -63,6 +65,11 @@ const FullPlayer: React.FC<FullPlayerProps> = ({ visible, onClose }) => {
   const [seekValue, setSeekValue] = useState(progress);
   const [isDragging, setIsDragging] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
+
+  // 📸 Lyric / Aesthetic Story Card State
+  const [isStoryModalOpen, setIsStoryModalOpen] = useState(false);
+  const [selectedLyrics, setSelectedLyrics] = useState<string[]>([]);
+  const [loadingLyrics, setLoadingLyrics] = useState(false);
 
   const slideAnim = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(0.95)).current;
@@ -145,6 +152,43 @@ const FullPlayer: React.FC<FullPlayerProps> = ({ visible, onClose }) => {
     setShowMenu(false);
   }, []);
 
+  // ⚡ Open Aesthetic Story Card Handler
+  const handleOpenStoryCard = useCallback(async () => {
+    if (!currentSong) return;
+    setLoadingLyrics(true);
+
+    try {
+      const res = await Song.getLyrics({ songId: currentSong.id });
+      if (res?.lyrics) {
+        const cleanLines = res.lyrics
+          .replace(/<br\s*[\/]?>/gi, "\n")
+          .split("\n")
+          .map((l: string) => l.trim())
+          .filter((l: string) => l.length > 0)
+          .slice(0, 3);
+
+        setSelectedLyrics(
+          cleanLines.length > 0
+            ? cleanLines
+            : ["Currently vibing on Daze Music ⚡", "Lossless 320kbps Audio"],
+        );
+      } else {
+        setSelectedLyrics([
+          "Currently vibing on Daze Music ⚡",
+          "Lossless 320kbps Audio",
+        ]);
+      }
+    } catch {
+      setSelectedLyrics([
+        "Currently vibing on Daze Music ⚡",
+        "Lossless 320kbps Audio",
+      ]);
+    } finally {
+      setLoadingLyrics(false);
+      setIsStoryModalOpen(true);
+    }
+  }, [currentSong]);
+
   const gradient = createColorGradient(dominantColor);
 
   const handleTrackPress = useCallback(
@@ -172,6 +216,16 @@ const FullPlayer: React.FC<FullPlayerProps> = ({ visible, onClose }) => {
   );
 
   if (!currentSong) return null;
+
+  const resolvedArtwork =
+    currentSong.images?.[2]?.url ||
+    currentSong.images?.[1]?.url ||
+    currentSong.images?.[0]?.url;
+
+  const artistName =
+    currentSong.artists?.primary?.map((a: any) => a.name).join(", ") ||
+    currentSong.subtitle ||
+    "Artist";
 
   return (
     <Modal
@@ -243,7 +297,7 @@ const FullPlayer: React.FC<FullPlayerProps> = ({ visible, onClose }) => {
             <View style={styles.artworkContainer}>
               <View style={styles.artworkShadow}>
                 <Image
-                  source={{ uri: currentSong.images?.[2]?.url }}
+                  source={{ uri: resolvedArtwork }}
                   style={styles.artwork}
                   contentFit="cover"
                 />
@@ -281,6 +335,27 @@ const FullPlayer: React.FC<FullPlayerProps> = ({ visible, onClose }) => {
                 />
               </TouchableOpacity>
             </View>
+
+            {/* 📸 Aesthetic Story Card Trigger */}
+            <TouchableOpacity
+              onPress={handleOpenStoryCard}
+              style={styles.storyCardButton}
+              activeOpacity={0.7}
+              disabled={loadingLyrics}
+            >
+              {loadingLyrics ? (
+                <ActivityIndicator size="small" color="#4ade80" />
+              ) : (
+                <MaterialCommunityIcons
+                  name="sparkles"
+                  size={16}
+                  color="#4ade80"
+                />
+              )}
+              <Text style={styles.storyCardButtonText}>
+                {loadingLyrics ? "Generating..." : "Story Card ⚡"}
+              </Text>
+            </TouchableOpacity>
 
             <View style={styles.progressContainer}>
               <Slider
@@ -364,6 +439,16 @@ const FullPlayer: React.FC<FullPlayerProps> = ({ visible, onClose }) => {
           </Animated.ScrollView>
         </Animated.View>
       </LinearGradient>
+
+      {/* 📸 Fullscreen Lyric Story Modal */}
+      <LyricStoryModal
+        visible={isStoryModalOpen}
+        onClose={() => setIsStoryModalOpen(false)}
+        songTitle={currentSong.title || "Unknown Track"}
+        artistName={artistName}
+        artworkUrl={resolvedArtwork}
+        selectedLyrics={selectedLyrics}
+      />
     </Modal>
   );
 };
@@ -408,8 +493,8 @@ const styles = StyleSheet.create({
   },
   artworkContainer: {
     alignItems: "center",
-    marginTop: 32,
-    marginBottom: 40,
+    marginTop: 24,
+    marginBottom: 28,
     paddingHorizontal: 24,
   },
   artworkShadow: {
@@ -429,7 +514,7 @@ const styles = StyleSheet.create({
     alignItems: "flex-start",
     justifyContent: "space-between",
     paddingHorizontal: 24,
-    marginBottom: 24,
+    marginBottom: 16,
   },
   songInfo: {
     flex: 1,
@@ -452,6 +537,25 @@ const styles = StyleSheet.create({
     height: 44,
     justifyContent: "center",
     alignItems: "center",
+  },
+  storyCardButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    alignSelf: "center",
+    backgroundColor: "rgba(255, 255, 255, 0.08)",
+    borderWidth: 1,
+    borderColor: "rgba(74, 222, 128, 0.25)",
+    paddingVertical: 7,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+    gap: 6,
+    marginBottom: 16,
+  },
+  storyCardButtonText: {
+    color: "#ffffff",
+    fontSize: 12,
+    fontWeight: "700",
+    letterSpacing: 0.2,
   },
   progressContainer: {
     paddingHorizontal: 24,
