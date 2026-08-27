@@ -24,8 +24,8 @@ interface LyricStoryModalProps {
 }
 
 const { width } = Dimensions.get("window");
-const CARD_WIDTH = width * 0.84;
-const CARD_HEIGHT = CARD_WIDTH * 1.55;
+const CARD_WIDTH = width * 0.88;
+const CARD_HEIGHT = CARD_WIDTH * 1.65; // Taller Ghibli poster aspect ratio
 
 export const LyricStoryModal: React.FC<LyricStoryModalProps> = ({
   visible,
@@ -63,75 +63,78 @@ export const LyricStoryModal: React.FC<LyricStoryModalProps> = ({
           <TouchableOpacity onPress={onClose} style={styles.iconBtn}>
             <MaterialCommunityIcons name="close" size={24} color="#fff" />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Aesthetic Lyric Card</Text>
+          <Text style={styles.headerTitle}>Cinematic Ghibli Card</Text>
           <View style={{ width: 40 }} />
         </View>
 
-        {/* 📸 The Capturable Card View (9:16 Ratio) */}
+        {/* 🎨 Ghibli / Pinterest Cinematic Poster Card */}
         <ViewShot
           ref={viewShotRef}
           options={{ format: "png", quality: 1.0 }}
           style={styles.cardWrapper}
         >
           <LinearGradient
-            colors={["#1e293b", "#0f172a", "#020617"]}
+            colors={["#1c1917", "#0f172a", "#090d16"]}
             style={styles.cardGradient}
           >
-            {/* Ambient Background Image Blur */}
+            {/* Atmospheric Background Blur */}
             {artworkUrl && (
               <Image
                 source={{ uri: artworkUrl }}
                 style={StyleSheet.absoluteFillObject}
                 contentFit="cover"
-                blurRadius={45}
-                opacity={0.35}
+                blurRadius={60}
+                opacity={0.4}
               />
             )}
 
-            {/* Song Header Info */}
-            <View style={styles.cardHeader}>
-              <Image
-                source={{ uri: artworkUrl }}
-                style={styles.miniArtwork}
-                contentFit="cover"
-              />
-              <View style={styles.songInfo}>
-                <Text style={styles.cardTitle} numberOfLines={1}>
-                  {songTitle}
-                </Text>
-                <Text style={styles.cardArtist} numberOfLines={1}>
-                  {artistName}
-                </Text>
-              </View>
+            {/* Top Cinematic Badge */}
+            <View style={styles.topBadgeRow}>
+              <Text style={styles.badgeText}>✦ DAZE CINEMATIC MEMORY ✦</Text>
             </View>
 
-            {/* Selected Aesthetic Lyrics */}
-            <View style={styles.lyricsBody}>
-              <MaterialCommunityIcons
-                name="format-quote-open"
-                size={28}
-                color="rgba(74, 222, 128, 0.4)"
-                style={{ marginBottom: 4 }}
+            {/* Big Ghibli Style Artwork Box */}
+            <View style={styles.artworkContainer}>
+              <Image
+                source={{ uri: artworkUrl }}
+                style={styles.mainArtwork}
+                contentFit="cover"
               />
+            </View>
+
+            {/* Song Meta */}
+            <View style={styles.metaBox}>
+              <Text style={styles.cardTitle} numberOfLines={1}>
+                {songTitle.toUpperCase()}
+              </Text>
+              <Text style={styles.cardArtist} numberOfLines={1}>
+                {artistName}
+              </Text>
+            </View>
+
+            {/* Poetic Lyrics (Ghibli Vibe Quotes) */}
+            <View style={styles.lyricsBody}>
+              <Text style={styles.quoteMark}>“</Text>
               {selectedLyrics.map((line, idx) => (
                 <Text key={idx} style={styles.lyricLine}>
                   {line}
                 </Text>
               ))}
+              <Text style={styles.quoteMarkClose}>”</Text>
             </View>
 
-            {/* Daze Branding Footer */}
+            {/* Footer Branding */}
             <View style={styles.cardFooter}>
               <View style={styles.brandRow}>
-                <MaterialCommunityIcons name="lightning-bolt" size={16} color="#4ade80" />
+                <MaterialCommunityIcons name="lightning-bolt" size={14} color="#4ade80" />
                 <Text style={styles.brandText}>DAZE MUSIC</Text>
               </View>
-              <Text style={styles.tagline}>Lossless • Pure Sound</Text>
+              <Text style={styles.tagline}>Lossless • daze.jayagarwal.online</Text>
             </View>
           </LinearGradient>
         </ViewShot>
 
-        {/* Action Controls */}
+        {/* Share Button */}
         <View style={styles.controls}>
           <TouchableOpacity
             style={styles.btnShare}
@@ -156,10 +159,10 @@ export const LyricStoryModal: React.FC<LyricStoryModalProps> = ({
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: "rgba(0,0,0,0.92)",
+    backgroundColor: "rgba(0,0,0,0.95)",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingVertical: 40,
+    paddingVertical: 30,
   },
   topBar: {
     width: "100%",
@@ -184,66 +187,102 @@ const styles = StyleSheet.create({
   cardWrapper: {
     width: CARD_WIDTH,
     height: CARD_HEIGHT,
-    borderRadius: 24,
+    borderRadius: 28,
     overflow: "hidden",
-    elevation: 20,
+    elevation: 24,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.5,
-    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 16 },
+    shadowOpacity: 0.6,
+    shadowRadius: 20,
   },
   cardGradient: {
     flex: 1,
-    padding: 24,
+    padding: 22,
     justifyContent: "space-between",
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.15)",
-    borderRadius: 24,
+    borderColor: "rgba(255,255,255,0.18)",
+    borderRadius: 28,
   },
-  cardHeader: {
-    flexDirection: "row",
+  topBadgeRow: {
     alignItems: "center",
-    gap: 12,
+    marginTop: 4,
   },
-  miniArtwork: {
-    width: 48,
-    height: 48,
-    borderRadius: 12,
+  badgeText: {
+    color: "rgba(255,255,255,0.6)",
+    fontSize: 10,
+    fontWeight: "800",
+    letterSpacing: 2,
+  },
+  artworkContainer: {
+    width: "100%",
+    height: CARD_WIDTH * 0.72,
+    borderRadius: 18,
+    overflow: "hidden",
     backgroundColor: "#1e293b",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.1)",
   },
-  songInfo: {
-    flex: 1,
+  mainArtwork: {
+    width: "100%",
+    height: "100%",
+  },
+  metaBox: {
+    alignItems: "center",
+    marginTop: 8,
   },
   cardTitle: {
     color: "#fff",
-    fontSize: 15,
-    fontWeight: "700",
+    fontSize: 14,
+    fontWeight: "900",
+    letterSpacing: 1,
+    textAlign: "center",
   },
   cardArtist: {
     color: "#94a3b8",
-    fontSize: 12,
+    fontSize: 11,
+    fontWeight: "600",
     marginTop: 2,
+    textAlign: "center",
   },
   lyricsBody: {
-    marginVertical: 16,
+    marginVertical: 4,
+    paddingHorizontal: 8,
+    position: "relative",
+  },
+  quoteMark: {
+    color: "rgba(74, 222, 128, 0.4)",
+    fontSize: 32,
+    fontWeight: "900",
+    lineHeight: 20,
+    marginBottom: -10,
+  },
+  quoteMarkClose: {
+    color: "rgba(74, 222, 128, 0.4)",
+    fontSize: 32,
+    fontWeight: "900",
+    textAlign: "right",
+    lineHeight: 15,
+    marginTop: -10,
   },
   lyricLine: {
     color: "#f8fafc",
-    fontSize: 19,
-    fontWeight: "800",
-    lineHeight: 30,
+    fontSize: 17,
+    fontWeight: "700",
+    lineHeight: 26,
     letterSpacing: -0.2,
-    textShadowColor: "rgba(0,0,0,0.6)",
+    textAlign: "center",
+    fontStyle: "italic",
+    textShadowColor: "rgba(0,0,0,0.8)",
     textShadowOffset: { width: 0, height: 2 },
-    textShadowRadius: 4,
+    textShadowRadius: 6,
   },
   cardFooter: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
     borderTopWidth: 1,
-    borderTopColor: "rgba(255,255,255,0.1)",
-    paddingTop: 14,
+    borderTopColor: "rgba(255,255,255,0.12)",
+    paddingTop: 12,
   },
   brandRow: {
     flexDirection: "row",
@@ -253,12 +292,12 @@ const styles = StyleSheet.create({
   brandText: {
     color: "#4ade80",
     fontSize: 11,
-    fontWeight: "800",
-    letterSpacing: 1.2,
+    fontWeight: "900",
+    letterSpacing: 1,
   },
   tagline: {
-    color: "#64748b",
-    fontSize: 10,
+    color: "#94a3b8",
+    fontSize: 9,
     fontWeight: "600",
   },
   controls: {
