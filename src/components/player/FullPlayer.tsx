@@ -22,7 +22,6 @@ import { TrackContextMenu } from "../common";
 import TrackItem from "../items/TrackItem";
 import LoadingHeartbeat from "./LoadingHeartBeat";
 import { LyricStoryModal } from "./LyricStoryModal";
-import { getSmartSongTheme } from "@/utils/vibeArtMapper";
 
 import { MaterialCommunityIcons, MaterialIcons } from "@expo/vector-icons";
 import Slider from "@react-native-community/slider";
@@ -67,10 +66,12 @@ const FullPlayer: React.FC<FullPlayerProps> = ({ visible, onClose }) => {
   const [isDragging, setIsDragging] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
 
-  // 📸 Lyric / Aesthetic Story Card State
+  // 📸 Story Card States
   const [isStoryModalOpen, setIsStoryModalOpen] = useState(false);
   const [selectedLyrics, setSelectedLyrics] = useState<string[]>([]);
   const [loadingLyrics, setLoadingLyrics] = useState(false);
+  const [generatedVisualUrl, setGeneratedVisualUrl] = useState("");
+  const [isGeneratingArt, setIsGeneratingArt] = useState(false);
 
   const slideAnim = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(0.95)).current;
@@ -153,36 +154,61 @@ const FullPlayer: React.FC<FullPlayerProps> = ({ visible, onClose }) => {
     setShowMenu(false);
   }, []);
 
+  // 🎨 Generative Aesthetic Illustration Creator
+  const generateAestheticVisual = useCallback((title: string, artist: string) => {
+    setIsGeneratingArt(true);
+    const seed = Math.floor(Math.random() * 100000);
+    const cleanTitle = encodeURIComponent(title.replace(/[^\w\s]/gi, ""));
+    const cleanArtist = encodeURIComponent(artist.replace(/[^\w\s]/gi, ""));
+
+    const prompt = `minimalist aesthetic anime illustration, ghibli studio style, inspired by song ${cleanTitle} by ${cleanArtist}, romantic emotional scene, soft pastel tones, prax doodles vector style, clean lighting, 4k`;
+    const url = `https://image.pollinations.ai/prompt/${prompt}?width=720&height=720&nologo=true&seed=${seed}`;
+
+    setGeneratedVisualUrl(url);
+    setIsGeneratingArt(false);
+  }, []);
+
   // ⚡ Open Aesthetic Story Card Handler
- const handleOpenStoryCard = useCallback(async () => {
-  if (!currentSong) return;
-  setLoadingLyrics(true);
-
-  // 🎨 Smart Theme & Dynamic Art Extraction
-  const smartTheme = getSmartSongTheme(currentSong.title, currentSong.subtitle);
-
-  try {
-    const res = await Song.getLyrics({ songId: currentSong.id });
-    if (res?.lyrics && res.lyrics.trim().length > 10) {
-      const cleanLines = res.lyrics
-        .replace(/<br\s*[\/]?>/gi, "\n")
-        .split("\n")
-        .map((l: string) => l.trim())
-        .filter((l: string) => l.length > 0)
-        .slice(0, 3);
-
-      setSelectedLyrics(cleanLines);
-    } else {
-      setSelectedLyrics(smartTheme.defaultQuotes);
-    }
-  } catch {
-    setSelectedLyrics(smartTheme.defaultQuotes);
-  } finally {
-    setLoadingLyrics(false);
+  const handleOpenStoryCard = useCallback(async () => {
+    if (!currentSong) return;
+    setLoadingLyrics(true);
     setIsStoryModalOpen(true);
-  }
-}, [currentSong]);
 
+    generateAestheticVisual(currentSong.title, currentSong.subtitle || "");
+
+    try {
+      const res = await Song.getLyrics({ songId: currentSong.id });
+      if (res?.lyrics && res.lyrics.trim().length > 10) {
+        const cleanLines = res.lyrics
+          .replace(/<br\s*[\/]?>/gi, "\n")
+          .split("\n")
+          .map((l: string) => l.trim())
+          .filter((l: string) => l.length > 0)
+          .slice(0, 3);
+
+        setSelectedLyrics(cleanLines);
+      } else {
+        setSelectedLyrics([
+          `Lost in the rhythm of ${currentSong.title}`,
+          "Living inside this melody...",
+          "✦ 3 AM Nostalgia on Daze ✦",
+        ]);
+      }
+    } catch {
+      setSelectedLyrics([
+        `Lost in the rhythm of ${currentSong.title}`,
+        "Living inside this melody...",
+        "✦ 3 AM Nostalgia on Daze ✦",
+      ]);
+    } finally {
+      setLoadingLyrics(false);
+    }
+  }, [currentSong, generateAestheticVisual]);
+
+  const handleRegenerateArt = useCallback(() => {
+    if (!currentSong) return;
+    generateAestheticVisual(currentSong.title, currentSong.subtitle || "");
+  }, [currentSong, generateAestheticVisual]);
 
   const gradient = createColorGradient(dominantColor);
 
@@ -442,7 +468,10 @@ const FullPlayer: React.FC<FullPlayerProps> = ({ visible, onClose }) => {
         songTitle={currentSong.title || "Unknown Track"}
         artistName={artistName}
         artworkUrl={resolvedArtwork}
+        generatedVisualUrl={generatedVisualUrl}
         selectedLyrics={selectedLyrics}
+        onRegenerate={handleRegenerateArt}
+        isGeneratingArt={isGeneratingArt}
       />
     </Modal>
   );
