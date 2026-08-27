@@ -22,6 +22,7 @@ import { TrackContextMenu } from "../common";
 import TrackItem from "../items/TrackItem";
 import LoadingHeartbeat from "./LoadingHeartBeat";
 import { LyricStoryModal } from "./LyricStoryModal";
+import { getSmartSongTheme } from "@/utils/vibeArtMapper";
 
 import { MaterialCommunityIcons, MaterialIcons } from "@expo/vector-icons";
 import Slider from "@react-native-community/slider";
@@ -153,10 +154,12 @@ const FullPlayer: React.FC<FullPlayerProps> = ({ visible, onClose }) => {
   }, []);
 
   // ⚡ Open Aesthetic Story Card Handler
-  // FullPlayer.tsx ke andar handleOpenStoryCard ko isse update karo:
-const handleOpenStoryCard = useCallback(async () => {
+ const handleOpenStoryCard = useCallback(async () => {
   if (!currentSong) return;
   setLoadingLyrics(true);
+
+  // 🎨 Smart Theme & Dynamic Art Extraction
+  const smartTheme = getSmartSongTheme(currentSong.title, currentSong.subtitle);
 
   try {
     const res = await Song.getLyrics({ songId: currentSong.id });
@@ -170,19 +173,10 @@ const handleOpenStoryCard = useCallback(async () => {
 
       setSelectedLyrics(cleanLines);
     } else {
-      // 🌸 Romantic / Cinematic Aesthetic Vibe Fallback
-      setSelectedLyrics([
-        `Lost in the rhythm of ${currentSong.title}`,
-        "Living inside this melody...",
-        "✦ 3 AM Nostalgia on Daze ✦"
-      ]);
+      setSelectedLyrics(smartTheme.defaultQuotes);
     }
   } catch {
-    setSelectedLyrics([
-      `Lost in the rhythm of ${currentSong.title}`,
-      "Living inside this melody...",
-      "✦ 3 AM Nostalgia on Daze ✦"
-    ]);
+    setSelectedLyrics(smartTheme.defaultQuotes);
   } finally {
     setLoadingLyrics(false);
     setIsStoryModalOpen(true);
