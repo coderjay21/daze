@@ -153,41 +153,42 @@ const FullPlayer: React.FC<FullPlayerProps> = ({ visible, onClose }) => {
   }, []);
 
   // ⚡ Open Aesthetic Story Card Handler
-  const handleOpenStoryCard = useCallback(async () => {
-    if (!currentSong) return;
-    setLoadingLyrics(true);
+  // FullPlayer.tsx ke andar handleOpenStoryCard ko isse update karo:
+const handleOpenStoryCard = useCallback(async () => {
+  if (!currentSong) return;
+  setLoadingLyrics(true);
 
-    try {
-      const res = await Song.getLyrics({ songId: currentSong.id });
-      if (res?.lyrics) {
-        const cleanLines = res.lyrics
-          .replace(/<br\s*[\/]?>/gi, "\n")
-          .split("\n")
-          .map((l: string) => l.trim())
-          .filter((l: string) => l.length > 0)
-          .slice(0, 3);
+  try {
+    const res = await Song.getLyrics({ songId: currentSong.id });
+    if (res?.lyrics && res.lyrics.trim().length > 10) {
+      const cleanLines = res.lyrics
+        .replace(/<br\s*[\/]?>/gi, "\n")
+        .split("\n")
+        .map((l: string) => l.trim())
+        .filter((l: string) => l.length > 0)
+        .slice(0, 3);
 
-        setSelectedLyrics(
-          cleanLines.length > 0
-            ? cleanLines
-            : ["Currently vibing on Daze Music ⚡", "Lossless 320kbps Audio"],
-        );
-      } else {
-        setSelectedLyrics([
-          "Currently vibing on Daze Music ⚡",
-          "Lossless 320kbps Audio",
-        ]);
-      }
-    } catch {
+      setSelectedLyrics(cleanLines);
+    } else {
+      // 🌸 Romantic / Cinematic Aesthetic Vibe Fallback
       setSelectedLyrics([
-        "Currently vibing on Daze Music ⚡",
-        "Lossless 320kbps Audio",
+        `Lost in the rhythm of ${currentSong.title}`,
+        "Living inside this melody...",
+        "✦ 3 AM Nostalgia on Daze ✦"
       ]);
-    } finally {
-      setLoadingLyrics(false);
-      setIsStoryModalOpen(true);
     }
-  }, [currentSong]);
+  } catch {
+    setSelectedLyrics([
+      `Lost in the rhythm of ${currentSong.title}`,
+      "Living inside this melody...",
+      "✦ 3 AM Nostalgia on Daze ✦"
+    ]);
+  } finally {
+    setLoadingLyrics(false);
+    setIsStoryModalOpen(true);
+  }
+}, [currentSong]);
+
 
   const gradient = createColorGradient(dominantColor);
 
