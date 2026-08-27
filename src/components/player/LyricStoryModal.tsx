@@ -16,7 +16,6 @@ import ViewShot from "react-native-view-shot";
 import * as Sharing from "expo-sharing";
 import * as IntentLauncher from "expo-intent-launcher";
 import * as FileSystem from "expo-file-system";
-import QRCode from "react-native-qrcode-svg";
 
 interface LyricStoryModalProps {
   visible: boolean;
@@ -32,7 +31,7 @@ interface LyricStoryModalProps {
 
 const { width } = Dimensions.get("window");
 const CARD_WIDTH = width * 0.88;
-const CARD_HEIGHT = CARD_WIDTH * 1.72; // 9:16 Instagram Story Ratio
+const CARD_HEIGHT = CARD_WIDTH * 1.72;
 
 export const LyricStoryModal: React.FC<LyricStoryModalProps> = ({
   visible,
@@ -55,7 +54,6 @@ export const LyricStoryModal: React.FC<LyricStoryModalProps> = ({
 
       const uri = await viewShotRef.current.capture();
 
-      // 📸 Direct Native Instagram Story Intent (Android)
       if (Platform.OS === "android") {
         try {
           const contentUri = await FileSystem.getContentUriAsync(uri);
@@ -64,7 +62,7 @@ export const LyricStoryModal: React.FC<LyricStoryModalProps> = ({
             {
               type: "image/*",
               data: contentUri,
-              flags: 1, // FLAG_GRANT_READ_URI_PERMISSION
+              flags: 1,
               extra: {
                 interactive_asset_uri: contentUri,
                 top_background_color: "#18181b",
@@ -74,7 +72,6 @@ export const LyricStoryModal: React.FC<LyricStoryModalProps> = ({
           );
           return;
         } catch {
-          // Fallback to standard share sheet agar Instagram installed na ho ya direct intent block ho
           await Sharing.shareAsync(uri, {
             mimeType: "image/png",
             dialogTitle: "Share to Instagram Story",
@@ -84,7 +81,6 @@ export const LyricStoryModal: React.FC<LyricStoryModalProps> = ({
         }
       }
 
-      // iOS fallback
       await Sharing.shareAsync(uri, {
         mimeType: "image/png",
         dialogTitle: "Share to Instagram Story",
@@ -100,11 +96,13 @@ export const LyricStoryModal: React.FC<LyricStoryModalProps> = ({
   const shareTargetUrl = `https://daze.jayagarwal.online/track?title=${encodeURIComponent(
     songTitle
   )}`;
+  const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(
+    shareTargetUrl
+  )}&color=ffffff&bgcolor=000000`;
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <View style={styles.overlay}>
-        {/* Top Header */}
         <View style={styles.topBar}>
           <TouchableOpacity onPress={onClose} style={styles.iconBtn}>
             <MaterialCommunityIcons name="close" size={24} color="#fff" />
@@ -123,7 +121,6 @@ export const LyricStoryModal: React.FC<LyricStoryModalProps> = ({
           </TouchableOpacity>
         </View>
 
-        {/* 📸 Capturable Story Card (9:16 Canvas) */}
         <ViewShot
           ref={viewShotRef}
           options={{ format: "png", quality: 1.0 }}
@@ -133,7 +130,6 @@ export const LyricStoryModal: React.FC<LyricStoryModalProps> = ({
             colors={["#18181b", "#09090b", "#000000"]}
             style={styles.cardGradient}
           >
-            {/* Ambient Blurred Background */}
             {artworkUrl && (
               <Image
                 source={{ uri: artworkUrl }}
@@ -144,12 +140,10 @@ export const LyricStoryModal: React.FC<LyricStoryModalProps> = ({
               />
             )}
 
-            {/* Cinematic Top Badge */}
             <View style={styles.topBadgeRow}>
               <Text style={styles.badgeText}>✦ DAZE CINEMATIC MEMORY ✦</Text>
             </View>
 
-            {/* Dynamic AI Aesthetic Illustration */}
             <View style={styles.visualContainer}>
               <Image
                 source={{ uri: generatedVisualUrl || artworkUrl }}
@@ -165,7 +159,6 @@ export const LyricStoryModal: React.FC<LyricStoryModalProps> = ({
               )}
             </View>
 
-            {/* Song Details + Mini Cover */}
             <View style={styles.metaRow}>
               <Image
                 source={{ uri: artworkUrl }}
@@ -182,7 +175,6 @@ export const LyricStoryModal: React.FC<LyricStoryModalProps> = ({
               </View>
             </View>
 
-            {/* Poetic Lyrics Block */}
             <View style={styles.lyricsContainer}>
               <Text style={styles.quoteMark}>“</Text>
               {selectedLyrics.map((line, idx) => (
@@ -193,7 +185,6 @@ export const LyricStoryModal: React.FC<LyricStoryModalProps> = ({
               <Text style={styles.quoteMarkClose}>”</Text>
             </View>
 
-            {/* Footer with Daze Branding + QR Code */}
             <View style={styles.footerRow}>
               <View style={styles.brandInfo}>
                 <View style={styles.brandTitleRow}>
@@ -204,13 +195,11 @@ export const LyricStoryModal: React.FC<LyricStoryModalProps> = ({
                 <Text style={styles.brandUrl}>daze.jayagarwal.online</Text>
               </View>
 
-              {/* Dynamic QR Code for Scan-to-Listen */}
               <View style={styles.qrWrapper}>
-                <QRCode
-                  value={shareTargetUrl}
-                  size={46}
-                  color="#ffffff"
-                  backgroundColor="transparent"
+                <Image
+                  source={{ uri: qrCodeUrl }}
+                  style={styles.qrImage}
+                  contentFit="contain"
                 />
                 <Text style={styles.qrLabel}>Scan to Play</Text>
               </View>
@@ -218,7 +207,6 @@ export const LyricStoryModal: React.FC<LyricStoryModalProps> = ({
           </LinearGradient>
         </ViewShot>
 
-        {/* Share Button */}
         <View style={styles.controls}>
           <TouchableOpacity
             style={styles.btnShare}
@@ -419,6 +407,11 @@ const styles = StyleSheet.create({
     padding: 6,
     borderRadius: 8,
     backgroundColor: "rgba(255,255,255,0.06)",
+  },
+  qrImage: {
+    width: 44,
+    height: 44,
+    borderRadius: 4,
   },
   qrLabel: {
     color: "rgba(255,255,255,0.6)",
