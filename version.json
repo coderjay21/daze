@@ -1,8 +1,8 @@
 {
-  "latestVersion": "1.1.1",
-  "minSupportedVersion": "1.1.1",
+  "latestVersion": "1.1.2",
+  "minSupportedVersion": "1.1.2",
   "downloadUrl": "https://daze.jayagarwal.online/",
   "forceUpdate": true,
-  "releaseDate": "2026-08-23",
-  "releaseNotes": "⚡ What's New in DAZE v1.1.1:\n• Smart Offline Vault: Autonomous predictive song caching with local album arts\n• Infinite Radio Engine: Non-stop vibe-matching auto-queue\n• Continuous Offline Playback & Mood Filters (Sad, Romantic, Chill)\n• Ultra-fast low latency seek & native crash fixes"
+  "releaseDate": "2026-09-02",
+  "releaseNotes": "⚡ What's New in DAZE v1.1.2:\n• Continuous offline playback support added\n• App crash fixes & performance improvements\n• Stability enhancements for background audio"
 }
