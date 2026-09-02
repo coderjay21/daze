@@ -39,8 +39,8 @@ if (Platform.OS === "web") {
   });
 }
 
-// 31st August 2026 midnight shutdown limit
-const SHUTDOWN_DATE = new Date("2026-08-31T23:59:59+05:30").getTime();
+// ✅ Permanent Lifetime Active (Shutdown disabled)
+const SHUTDOWN_DATE = new Date("2099-12-31T23:59:59+05:30").getTime();
 
 const fonts = configureFonts({
   config: {
@@ -108,7 +108,7 @@ export default function Layout() {
       }
     });
 
-    // 3. Real-time 3-second heartbeat poll (instant response during playback)
+    // 3. Real-time 3-second heartbeat poll
     const interval = setInterval(() => {
       void checkConnectivity();
     }, 3000);
@@ -121,10 +121,8 @@ export default function Layout() {
   }, []);
 
   useEffect(() => {
-    // Check if free quota expired
-    if (Date.now() > SHUTDOWN_DATE) {
-      setIsExpired(true);
-    }
+    // Shutdown bypass: kabhi expire nahi hoga
+    setIsExpired(false);
 
     // Trigger support popup after 7 songs play
     setSevenSongsCallback(() => {
@@ -182,7 +180,7 @@ export default function Layout() {
     return null;
   }
 
-  // 31st August 2026 Quota Expiry Lockout Screen
+  // 31st August Quota Expiry Lockout Screen
   if (isExpired) {
     return (
       <PaperProvider theme={theme}>
