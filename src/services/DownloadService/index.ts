@@ -3,7 +3,6 @@ import { appStorage } from "@/stores/storage";
 import { Models, Song } from "@saavn-labs/sdk";
 import * as FileSystem from "expo-file-system/legacy";
 import * as MediaLibrary from "expo-media-library";
-import * as Sharing from "expo-sharing";
 import { Alert } from "react-native";
 import { DownloadManager, TrackItem } from "react-native-nitro-player";
 
