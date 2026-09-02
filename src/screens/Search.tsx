@@ -4,7 +4,6 @@ import { UI_CONFIG } from "@/constants";
 import { useSearchStore } from "@/stores";
 import { useCurrentSong, usePlayerActions } from "@/stores/playerStore";
 import { getScreenPaddingBottom, theme } from "@/utils";
-import { ReelAudioService } from "@/services/ReelAudioService";
 import { Models } from "@saavn-labs/sdk";
 
 import React, {
@@ -15,9 +14,7 @@ import React, {
   useState,
 } from "react";
 import {
-  ActivityIndicator,
   Animated,
-  Modal,
   ScrollView,
   StyleSheet,
   TouchableOpacity,
@@ -58,7 +55,7 @@ const SkeletonItem = React.memo(() => {
     );
     animation.start();
     return () => animation.stop();
-  }, []);
+  }, [fadeAnim]);
 
   return (
     <Animated.View style={[styles.skeletonItem, { opacity: fadeAnim }]}>
@@ -157,65 +154,28 @@ const SearchScreen: React.FC<SearchScreenProps> = ({
   } = useSearchStore();
 
   const [isVoiceModalVisible, setIsVoiceModalVisible] = useState(false);
-  const [identifyingReel, setIdentifyingReel] = useState(false);
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     loadRecentSearches();
-  }, []);
+  }, [loadRecentSearches]);
 
-  // 🚀 Resilient Instagram Shared Intent Resolver with Auto-Dismiss & Fallback
   useEffect(() => {
-    if (!sharedUrl) return;
-
-    let isMounted = true;
-    setIdentifyingReel(true);
-
-    // ⏱️ 6-second safety net taaki screen loader kabhi freeze na ho
-    const safetyTimeout = setTimeout(() => {
-      if (isMounted) {
-        setIdentifyingReel(false);
+    if (sharedUrl) {
+      const cleanText = sharedUrl.replace(/https?:\/\/\S+/g, "").trim();
+      if (cleanText.length >= 2) {
+        setSearchQuery(cleanText);
+        executeSearch(cleanText, null);
       }
-    }, 6000);
-
-    ReelAudioService.resolveSongFromInstagram(sharedUrl)
-      .then(async (matchedSong) => {
-        if (!isMounted) return;
-        clearTimeout(safetyTimeout);
-        setIdentifyingReel(false);
-
-        if (matchedSong) {
-          setSearchQuery(matchedSong.title);
-          executeSearch(matchedSong.title, null);
-          await playSong(matchedSong);
-        } else {
-          // Fallback: Agar auto-match nahi hua toh raw share text ko search box me dalo
-          const cleanText = sharedUrl.replace(/https?:\/\/\S+/g, "").trim();
-          if (cleanText.length >= 2) {
-            setSearchQuery(cleanText);
-            executeSearch(cleanText, null);
-          }
-        }
-      })
-      .catch(() => {
-        if (isMounted) {
-          clearTimeout(safetyTimeout);
-          setIdentifyingReel(false);
-        }
-      });
-
-    return () => {
-      isMounted = false;
-      clearTimeout(safetyTimeout);
-    };
-  }, [sharedUrl, playSong, executeSearch, setSearchQuery]);
+    }
+  }, [sharedUrl, executeSearch, setSearchQuery]);
 
   useEffect(() => {
     return () => {
       if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
       cancelSearch();
     };
-  }, []);
+  }, [cancelSearch]);
 
   useEffect(() => {
     if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
@@ -229,7 +189,7 @@ const SearchScreen: React.FC<SearchScreenProps> = ({
       cancelSearch();
       clearSearchResults();
     }
-  }, [searchQuery, activeTab]);
+  }, [searchQuery, activeTab, executeSearch, cancelSearch, clearSearchResults]);
 
   useEffect(() => {
     const trimmedQuery = searchQuery.trim();
@@ -288,7 +248,7 @@ const SearchScreen: React.FC<SearchScreenProps> = ({
         )}
       </View>
     ),
-    [theme],
+    [],
   );
 
   const renderTopQueryResult = useCallback(
@@ -566,7 +526,9 @@ const SearchScreen: React.FC<SearchScreenProps> = ({
     loadingStates,
     recentSearches,
     activeTab,
-    theme,
+    clearRecentSearches,
+    handleRecentSearchSelect,
+    removeRecentSearch,
     renderTopQueryResult,
     renderSongsList,
     renderAlbumsList,
@@ -670,19 +632,6 @@ const SearchScreen: React.FC<SearchScreenProps> = ({
         onClose={() => setIsVoiceModalVisible(false)}
         onResult={handleVoiceResult}
       />
-
-      {/* 🔮 Identifying Reel Music Modal */}
-      <Modal visible={identifyingReel} transparent animationType="fade">
-        <View style={styles.modalOverlay}>
-          <View style={styles.identifyingCard}>
-            <ActivityIndicator size="large" color="#1DB954" />
-            <Text style={styles.identifyingTitle}>Recognizing Reel Music ⚡</Text>
-            <Text style={styles.identifyingSub}>
-              Finding high-quality 320kbps full track from Instagram...
-            </Text>
-          </View>
-        </View>
-      </Modal>
     </View>
   );
 };
@@ -778,22 +727,6 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     width: "50%",
   },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.8)",
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 20,
-  },
-  identifyingCard: {
-    backgroundColor: "#1e1e1e",
-    borderRadius: 16,
-    padding: 24,
-    alignItems: "center",
-    width: "85%",
-  },
-  identifyingTitle: { color: "#fff", fontSize: 17, fontWeight: "700", marginTop: 14 },
-  identifyingSub: { color: "#888", fontSize: 12, textAlign: "center", marginTop: 6, lineHeight: 18 },
 });
 
 export default SearchScreen;
