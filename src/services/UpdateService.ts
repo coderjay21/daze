@@ -3,8 +3,7 @@ import { appStorage } from "@/stores/storage";
 import { useUpdateStore } from "@/stores/updateStore";
 import * as Application from "expo-application";
 import * as Device from "expo-device";
-import * as IntentLauncher from "expo-intent-launcher";
-import { NativeModules, Platform } from "react-native";
+import { Linking, NativeModules, Platform } from "react-native";
 import RNFetchBlob from "react-native-blob-util";
 
 const GITHUB_REPO_API = "https://api.github.com/repos/coderjay21/daze/releases/latest";
@@ -49,7 +48,6 @@ class UpdateService {
       const arch = this.getDeviceArchitecture();
 
       const targetApkName = ARCH_APK_MAP[arch] ?? "app-arm64-v8a-release.apk";
-      // Agar specific arch APK na mile toh pehla milne wala APK asset use karega
       const apk =
         data.assets.find((a: any) => a.name === targetApkName) ??
         data.assets.find((a: any) => a.name.endsWith(".apk"));
@@ -58,15 +56,14 @@ class UpdateService {
 
       const updateAvailable = isNewerVersion(latestVersion, currentVersion);
       if (!updateAvailable) return;
-// UpdateService.ts mein checkOnLaunch method ke andar:
-useUpdateStore.getState().setUpdateAvailable({
-  latestVersion,
-  apkUrl: apk.browser_download_url,
-  releaseName: data.name ?? `Daze v${latestVersion}`,
-  releaseUrl: "https://daze.jayagarwal.online", // <-- Website URL
-  forceUpdate: false,
-});
 
+      useUpdateStore.getState().setUpdateAvailable({
+        latestVersion,
+        apkUrl: apk.browser_download_url,
+        releaseName: data.name ?? `Daze v${latestVersion}`,
+        releaseUrl: "https://daze.jayagarwal.online",
+        forceUpdate: false,
+      });
     } catch (e) {
       console.error("Update check failed:", e);
     }
@@ -100,12 +97,8 @@ useUpdateStore.getState().setUpdateAvailable({
   }
 
   async openInstallPermissionSettings(): Promise<void> {
-    const packageName = Application.applicationId;
     try {
-      await IntentLauncher.startActivityAsync(
-        "android.settings.MANAGE_UNKNOWN_APP_SOURCES",
-        { data: `package:${packageName}` }
-      );
+      await Linking.openSettings();
     } catch (error) {
       console.error("Settings open failed:", error);
     }
