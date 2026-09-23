@@ -1,8 +1,8 @@
 {
-  "latestVersion": "1.1.2",
-  "minSupportedVersion": "1.1.2",
+  "latestVersion": "1.1.3",
+  "minSupportedVersion": "1.1.3",
   "downloadUrl": "https://daze.jayagarwal.online/",
   "forceUpdate": true,
   "releaseDate": "2026-09-02",
-  "releaseNotes": "⚡ What's New in DAZE v1.1.2:\n• Continuous offline playback support added\n• App crash fixes & performance improvements\n• Stability enhancements for background audio"
+  "releaseNotes": "⚡ What's New in DAZE v1.1.3:\n• Continuous offline playback support added\n• App crash fixes & performance improvements\n• Stability enhancements for background audio"
 }
