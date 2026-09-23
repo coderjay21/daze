@@ -3,6 +3,7 @@ import { appStorage } from "@/stores/storage";
 import { useOfflineHubStore } from "@/stores/offlineHubStore";
 import { RepeatMode } from "@/types";
 import { Extras, Models, Song } from "@saavn-labs/sdk";
+import { Platform } from "react-native";
 import type { TrackItem } from "react-native-nitro-player";
 import { PlayerQueue, TrackPlayer } from "react-native-nitro-player";
 import { historyService } from "../HistoryService";
@@ -54,6 +55,12 @@ export interface IPlayerService {
   restoreLastPlayedTrack(currentSong: Models.Song | null, progress: number): Promise<void>;
 }
 
+// 🌐 HTML5 Web Audio Fallback Instance
+let webAudio: HTMLAudioElement | null = null;
+if (Platform.OS === "web" && typeof window !== "undefined") {
+  webAudio = new Audio();
+}
+
 export class PlayerService implements IPlayerService {
   private isInitialized = false;
   private isExtendingQueue = false;
@@ -65,18 +72,29 @@ export class PlayerService implements IPlayerService {
   public async initialize(): Promise<void> {
     if (this.isInitialized) return;
 
-    await TrackPlayer.configure({
-      androidAutoEnabled: true,
-      showInNotification: true,
-      androidNotificationIcon: "ic_notification",
-      lookaheadCount: 5,
-    });
+    if (Platform.OS === "web") {
+      this.isInitialized = true;
+      return;
+    }
 
-    this.setupEventListeners();
-    this.isInitialized = true;
+    try {
+      await TrackPlayer.configure({
+        androidAutoEnabled: true,
+        showInNotification: true,
+        androidNotificationIcon: "ic_notification",
+        lookaheadCount: 5,
+      });
+
+      this.setupEventListeners();
+      this.isInitialized = true;
+    } catch (e) {
+      console.warn("[PlayerService] Native configure skipped or failed:", e);
+    }
   }
 
   private setupEventListeners(): void {
+    if (Platform.OS === "web") return;
+
     TrackPlayer.onChangeTrack(async (track, reason) => {
       if (!track) return;
 
@@ -109,8 +127,8 @@ export class PlayerService implements IPlayerService {
         const queue = await TrackPlayer.getActualQueue();
 
         if (queue.length > 0 && state.currentIndex >= queue.length - 2) {
-          // Avoid extending offline-only local files with online SDK fetch
-          const isOfflineItem = track.url.startsWith("file://") || track.url.startsWith("nitro-download://");
+          const isOfflineItem =
+            track.url.startsWith("file://") || track.url.startsWith("nitro-download://");
           if (!isOfflineItem) {
             await this.maybeExtendQueue(track.id);
           }
@@ -139,6 +157,29 @@ export class PlayerService implements IPlayerService {
 
   async play(song: Models.Song, providedQueue?: Models.Song[]): Promise<void> {
     try {
+      const trackItem = await this.prepareTrack(song);
+      if (!trackItem) {
+        throw new Error("Track could not be prepared");
+      }
+
+      // 🌐 Handle Web Playback
+      if (Platform.OS === "web" && webAudio) {
+        webAudio.src = trackItem.url;
+        await webAudio.play().catch((err) => console.warn("[Player] Web play error:", err));
+
+        const artist = song.artists?.primary?.map((a) => a.name).join(", ") || "Unknown";
+        const artwork = song.images?.[2]?.url || song.images?.[1]?.url || "";
+        TasteEngineService.onSongPlayed({
+          id: song.id,
+          title: song.title || "",
+          artist,
+          artwork,
+          downloadUrl: trackItem.url,
+        });
+        return;
+      }
+
+      // 📱 Handle Native Android Playback
       let fullQueue: Models.Song[] = [];
       if (providedQueue?.length) {
         const currentIndex = providedQueue.findIndex((s) => s.id === song.id);
@@ -166,18 +207,13 @@ export class PlayerService implements IPlayerService {
       const validTracks = tracks.filter((t): t is TrackItem => !!t);
 
       if (validTracks.length === 0) {
-        const singleTrack = await this.prepareTrack(song);
-        if (singleTrack) {
-          validTracks.push(singleTrack);
-        } else {
-          throw new Error("No valid tracks could be prepared");
-        }
+        validTracks.push(trackItem);
       }
 
       const playlistId = await PlayerQueue.createPlaylist(
         song.title || "Now Playing",
         "",
-        song.images?.[2]?.url || song.images?.[1]?.url || undefined,
+        song.images?.[2]?.url || song.images?.[1]?.url || undefined
       );
 
       await PlayerQueue.addTracksToPlaylist(playlistId, validTracks);
@@ -200,13 +236,19 @@ export class PlayerService implements IPlayerService {
   }
 
   /**
-   * ⚡ Continuous Offline Hub Playback Implementation
+   * ⚡ Continuous Offline Hub Playback
    */
   async playTrack(
     track: OfflineTrackInput,
     providedQueue?: OfflineTrackInput[]
   ): Promise<void> {
     try {
+      if (Platform.OS === "web" && webAudio) {
+        webAudio.src = track.url;
+        await webAudio.play().catch((err) => console.warn("[Player] Web offline error:", err));
+        return;
+      }
+
       const queueList = providedQueue && providedQueue.length > 0 ? providedQueue : [track];
 
       const trackItems: TrackItem[] = queueList.map((t) => ({
@@ -236,11 +278,111 @@ export class PlayerService implements IPlayerService {
   }
 
   async resume(): Promise<void> {
+    if (Platform.OS === "web" && webAudio) {
+      await webAudio.play().catch(() => {});
+      return;
+    }
     await TrackPlayer.play();
   }
 
+  async pause(): Promise<void> {
+    if (Platform.OS === "web" && webAudio) {
+      webAudio.pause();
+      return;
+    }
+    await TrackPlayer.pause();
+  }
+
+  async togglePlayPause(): Promise<void> {
+    if (Platform.OS === "web" && webAudio) {
+      if (webAudio.paused) {
+        await webAudio.play().catch(() => {});
+      } else {
+        webAudio.pause();
+      }
+      return;
+    }
+
+    const state = await TrackPlayer.getState();
+    if (state.currentState === "playing") {
+      await TrackPlayer.pause();
+    } else {
+      await TrackPlayer.play();
+    }
+  }
+
+  async next(): Promise<void> {
+    if (Platform.OS === "web") return;
+    await TrackPlayer.skipToNext();
+  }
+
+  async previous(): Promise<void> {
+    if (Platform.OS === "web") return;
+    const state = await TrackPlayer.getState();
+    if (state.currentPosition > 3) {
+      await TrackPlayer.seek(0);
+    } else {
+      await TrackPlayer.skipToPrevious();
+    }
+  }
+
+  async seekTo(positionMs: number): Promise<void> {
+    if (Platform.OS === "web" && webAudio) {
+      webAudio.currentTime = positionMs / 1000;
+      return;
+    }
+    await TrackPlayer.seek(positionMs / 1000);
+  }
+
+  async setRepeatMode(mode: RepeatMode): Promise<void> {
+    if (Platform.OS === "web" && webAudio) {
+      webAudio.loop = mode === "one";
+      return;
+    }
+
+    let nitroMode: "off" | "track" | "Playlist" = "off";
+    if (mode === "one") nitroMode = "track";
+    else if (mode === "all") nitroMode = "Playlist";
+
+    await TrackPlayer.setRepeatMode(nitroMode);
+  }
+
+  async stop(): Promise<void> {
+    if (Platform.OS === "web" && webAudio) {
+      webAudio.pause();
+      webAudio.currentTime = 0;
+      return;
+    }
+
+    try {
+      const currentPlaylistId = await PlayerQueue.getCurrentPlaylistId();
+      if (currentPlaylistId) {
+        await PlayerQueue.deletePlaylist(currentPlaylistId);
+      }
+      await TrackPlayer.pause();
+    } catch (error) {
+      console.error("[Player] Stop error:", error);
+    }
+  }
+
+  async addToQueue(song: Models.Song): Promise<void> {
+    if (Platform.OS === "web") return;
+    const track = await this.prepareTrack(song);
+    if (track) {
+      await TrackPlayer.addToUpNext(track.id);
+    }
+  }
+
+  async addNextInQueue(song: Models.Song): Promise<void> {
+    if (Platform.OS === "web") return;
+    const track = await this.prepareTrack(song);
+    if (track) {
+      await TrackPlayer.playNext(track.id);
+    }
+  }
+
   async restoreLastPlayedTrack(currentSong: Models.Song | null, progress: number): Promise<void> {
-    if (!currentSong) return;
+    if (!currentSong || Platform.OS === "web") return;
     try {
       const recs = await this.fetchRecommendations(currentSong.id);
       const fullQueue = [currentSong, ...recs.slice(0, 10)];
@@ -257,7 +399,7 @@ export class PlayerService implements IPlayerService {
       const playlistId = await PlayerQueue.createPlaylist(
         currentSong.title || "Now Playing",
         "",
-        currentSong.images?.[2]?.url || currentSong.images?.[1]?.url || undefined,
+        currentSong.images?.[2]?.url || currentSong.images?.[1]?.url || undefined
       );
 
       await PlayerQueue.addTracksToPlaylist(playlistId, validTracks);
@@ -273,116 +415,59 @@ export class PlayerService implements IPlayerService {
     }
   }
 
-  async pause(): Promise<void> {
-    await TrackPlayer.pause();
-  }
-
-  async togglePlayPause(): Promise<void> {
-    const state = await TrackPlayer.getState();
-    if (state.currentState === "playing") {
-      await TrackPlayer.pause();
-    } else {
-      await TrackPlayer.play();
-    }
-  }
-
-  async next(): Promise<void> {
-    await TrackPlayer.skipToNext();
-  }
-
-  async previous(): Promise<void> {
-    const state = await TrackPlayer.getState();
-    if (state.currentPosition > 3) {
-      await TrackPlayer.seek(0);
-    } else {
-      await TrackPlayer.skipToPrevious();
-    }
-  }
-
-  async seekTo(positionMs: number): Promise<void> {
-    await TrackPlayer.seek(positionMs / 1000);
-  }
-
-  async setRepeatMode(mode: RepeatMode): Promise<void> {
-    let nitroMode: "off" | "track" | "Playlist" = "off";
-    if (mode === "one") nitroMode = "track";
-    else if (mode === "all") nitroMode = "Playlist";
-
-    await TrackPlayer.setRepeatMode(nitroMode);
-  }
-
-  async stop(): Promise<void> {
-    try {
-      const currentPlaylistId = await PlayerQueue.getCurrentPlaylistId();
-      if (currentPlaylistId) {
-        await PlayerQueue.deletePlaylist(currentPlaylistId);
-      }
-      await TrackPlayer.pause();
-    } catch (error) {
-      console.error("[Player] Stop error:", error);
-    }
-  }
-
-  async addToQueue(song: Models.Song): Promise<void> {
-    const track = await this.prepareTrack(song);
-    if (track) {
-      await TrackPlayer.addToUpNext(track.id);
-    }
-  }
-
-  async addNextInQueue(song: Models.Song): Promise<void> {
-    const track = await this.prepareTrack(song);
-    if (track) {
-      await TrackPlayer.playNext(track.id);
-    }
-  }
-
   public async prepareTrack(song: Models.Song): Promise<TrackItem | null> {
     try {
       const artist = song.artists?.primary?.map((a) => a.name).join(", ") || "Unknown";
       const album = typeof song.album === "string" ? song.album : song.album?.title || "";
       const artwork = song.images?.[2]?.url || song.images?.[1]?.url || "";
 
-      const isDownloaded = await downloadService.isDownloaded(song.id);
-      if (isDownloaded) {
-        return {
-          id: song.id,
-          url: "nitro-download://" + song.id,
-          title: song.title || "Unknown",
-          artist,
-          album,
-          artwork: artwork || null,
-          duration: song.duration || 0,
-          extraPayload: JSON.parse(JSON.stringify(song)),
-        };
+      // 1. Local Download Check (Native only)
+      if (Platform.OS !== "web") {
+        const isDownloaded = await downloadService.isDownloaded(song.id);
+        if (isDownloaded) {
+          return {
+            id: song.id,
+            url: "nitro-download://" + song.id,
+            title: song.title || "Unknown",
+            artist,
+            album,
+            artwork: artwork || null,
+            duration: song.duration || 0,
+            extraPayload: JSON.parse(JSON.stringify(song)),
+          };
+        }
+
+        const hubTracks = useOfflineHubStore.getState().cachedTracks || [];
+        const cachedHubTrack = hubTracks.find((t) => t.id === song.id);
+        if (cachedHubTrack && cachedHubTrack.localUri) {
+          return {
+            id: song.id,
+            url: cachedHubTrack.localUri,
+            title: song.title || "Unknown",
+            artist,
+            album: "Offline Hub",
+            artwork: artwork || null,
+            duration: song.duration || 0,
+            extraPayload: JSON.parse(JSON.stringify(song)),
+          };
+        }
       }
 
-      const hubTracks = useOfflineHubStore.getState().cachedTracks || [];
-      const cachedHubTrack = hubTracks.find((t) => t.id === song.id);
-      if (cachedHubTrack && cachedHubTrack.localUri) {
-        return {
-          id: song.id,
-          url: cachedHubTrack.localUri,
-          title: song.title || "Unknown",
-          artist,
-          album: "Offline Hub",
-          artwork: artwork || null,
-          duration: song.duration || 0,
-          extraPayload: JSON.parse(JSON.stringify(song)),
-        };
-      }
-
+      // 2. Stream URL Extraction
       let url: string;
       const encrypted =
-        song.media?.encryptedUrl || (await Song.getById({ songIds: song.id })).songs[0]?.media?.encryptedUrl;
+        song.media?.encryptedUrl ||
+        (await Song.getById({ songIds: song.id })).songs[0]?.media?.encryptedUrl;
       if (!encrypted) throw new Error("No encrypted URL available");
 
       const urls = await Song.experimental.fetchStreamUrls(encrypted, "edge", true);
 
       const quality = (await appStorage.getItem(STORAGE_KEYS.CONTENT_QUALITY)) || "medium";
-      const idx = AUDIO_QUALITY[quality.toUpperCase() as keyof typeof AUDIO_QUALITY] || AUDIO_QUALITY.MEDIUM;
+      const idx =
+        AUDIO_QUALITY[quality.toUpperCase() as keyof typeof AUDIO_QUALITY] || AUDIO_QUALITY.MEDIUM;
 
-      const streamUrl = urls[idx]?.url;
+      // Fast-loading fallback pick
+      const streamUrl = urls[idx]?.url || urls[2]?.url || urls[0]?.url;
       if (!streamUrl) throw new Error("No streaming URL available");
       url = streamUrl;
 
@@ -417,7 +502,7 @@ export class PlayerService implements IPlayerService {
   }
 
   private async maybeExtendQueue(seedSongId: string): Promise<boolean> {
-    if (this.isExtendingQueue) return false;
+    if (this.isExtendingQueue || Platform.OS === "web") return false;
     this.isExtendingQueue = true;
 
     try {
